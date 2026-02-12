@@ -31,12 +31,110 @@
   --accent: #3b82f6;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+}
+/* Section Nav */
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15,17,23,0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.section-nav::-webkit-scrollbar { display: none; }
+.section-nav-inner {
+  display: flex;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.section-nav a {
+  display: inline-block;
+  padding: 12px 18px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.section-nav a:hover {
+  color: var(--text-primary);
+  border-bottom-color: var(--blue);
+}
+/* Collapsible sections */
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.collapsible-header .toggle-icon {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.collapsible-header.open .toggle-icon { transform: rotate(90deg); }
+.collapsible-content { display: none; }
+.collapsible-content.open { display: block; }
+/* Today's Focus */
+.today-focus {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(6,182,212,0.08));
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.today-focus .focus-icon { font-size: 24px; }
+.today-focus .focus-text { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.today-focus .focus-detail { font-size: 13px; color: var(--text-secondary); }
+/* TSS toggle */
+.tss-toggle {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 6px;
+  color: var(--blue-light);
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 12px;
+}
+.tss-toggle:hover { background: rgba(59,130,246,0.2); }
+/* Data freshness */
+.data-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.15);
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--green-light);
+  margin-top: 6px;
+}
+.data-freshness .pulse {
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
 }
 .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 .header {
@@ -321,10 +419,101 @@ body {
   </div>
 </div>
 
-<!-- ROW 1: Training Load + PMC -->
-<div class="grid">
+<!-- SECTION NAV -->
+<div class="section-nav">
+  <div class="section-nav-inner">
+    <a href="#overview">Overview</a>
+    <a href="#this-week">This Week</a>
+    <a href="#recovery">Recovery</a>
+    <a href="#training">Training</a>
+    <a href="#race-plans">Race Plans</a>
+    <a href="#coach">Coach</a>
+  </div>
+</div>
+
+<!-- THIS WEEK (moved to position #2) -->
+<div id="this-week" class="grid" style="margin-bottom:20px">
   <div class="card">
-    <h2><span class="icon">📊</span> Weekly Training Load (12 Months)</h2>
+    <h2><span class="icon">📋</span> This Week (Feb 9-15, 2026)</h2>
+    <div class="today-focus">
+      <span class="focus-icon">🚴</span>
+      <div>
+        <div class="focus-text">Today's Focus: Rest Day</div>
+        <div class="focus-detail">Next workout: Friday Endurance (TSS 54 planned)</div>
+      </div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">138</div><div class="lbl">TSS Actual</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">396</div><div class="lbl">TSS Planned</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">35%</div><div class="lbl">Progress</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--cyan)">2.7h</div><div class="lbl">Hours Done</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/5</div><div class="lbl">Completed</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--purple)">0.69</div><div class="lbl">Avg IF</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--yellow)">62%</div><div class="lbl">Avg Recovery</div></div>
+    </div>
+
+    <h3>Workouts</h3>
+    <table class="segment-table">
+      <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
+      <tbody>
+        <tr><td>Mon</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
+        <tr><td>Tue</td><td>Endurance</td><td>40.5</td><td>149W</td><td><span class="badge badge-yellow">74</span></td></tr>
+        <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
+        <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
+        <tr style="opacity:0.6"><td>Fri</td><td>Endurance</td><td colspan="2" style="color:var(--text-muted)">TSS 54 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+        <tr style="opacity:0.6"><td>Sat</td><td>Long Ride &ndash; Tempo/SS</td><td colspan="2" style="color:var(--text-muted)">TSS 122 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+        <tr style="opacity:0.6"><td>Sun</td><td>Free Ride</td><td colspan="2" style="color:var(--text-muted)">TSS 65 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:16px">PMC Trend</h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+      CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">↑</span><br>
+      ATL: 50.0<br>
+      TSB: -4.0 &mdash; Absorbing load well<br>
+      <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W (0.80 W/week needed)</span>
+    </div>
+
+    <h3 style="margin-top:16px">Recovery This Week</h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+      Avg Recovery: 62% <span class="badge badge-yellow">Yellow</span><br>
+      Avg HRV: 35ms<br>
+      Avg Sleep: 6.8 hrs
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">💡</span> Key Insights</h2>
+    <div class="insight-card">
+      <div class="type">🟢 Recovery Correlation (High Confidence)</div>
+      Recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
+    </div>
+    <div class="insight-card" style="border-color:var(--cyan);background:rgba(6,182,212,0.06)">
+      <div class="type" style="color:var(--cyan)">🟡 HRV Threshold (Medium)</div>
+      Best workouts (quality &ge;80, n=145) typically occur when HRV is above 31ms. Average HRV on good days: 36ms vs other days: 34ms.
+    </div>
+    <div class="insight-card" style="border-color:var(--yellow);background:rgba(234,179,8,0.06)">
+      <div class="type" style="color:var(--yellow)">🔴 Sleep Impact (Low Confidence)</div>
+      Sleep hours correlate with workout quality at r=0.09 (n=159). Average sleep 6.7 hrs. 7.5+ hrs shows quality of 87.1 vs 86.2 on &lt;6 hr nights. Minimal difference.
+    </div>
+    <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
+      <div class="type" style="color:var(--green)">🟢 Consistency (High Confidence)</div>
+      Workout completion rate: 75.1% (163/217 planned workouts). Recent 4-week streak at 100% completion.
+    </div>
+    <div class="insight-card" style="border-color:var(--purple);background:rgba(168,85,247,0.06)">
+      <div class="type" style="color:var(--purple)">🟢 FTP Trend (High Confidence)</div>
+      Need 0.80W/week to reach 300W by end of 2026. On track. Projected ~277W at Vatternrundan.
+    </div>
+  </div>
+</div>
+
+<!-- ROW 1: Training Load + PMC -->
+<div id="overview" class="grid">
+  <div class="card">
+    <h2><span class="icon">📊</span> Weekly Training Load <span id="tssRangeLabel">(Last 20 Weeks)</span> <span class="tss-toggle" id="tssToggle" onclick="toggleTSSRange()">Show full year</span></h2>
     <div class="chart-container tall">
       <canvas id="tssChart"></canvas>
     </div>
@@ -338,7 +527,7 @@ body {
 </div>
 
 <!-- ROW 2: Recovery Dashboard -->
-<div class="card" style="margin-bottom:20px">
+<div id="recovery" class="card" style="margin-bottom:20px">
   <h2><span class="icon">💚</span> Recovery Dashboard (30 Days)</h2>
   <div class="finding-box">
     <span class="emoji">🔬</span>
@@ -347,15 +536,15 @@ body {
   <div class="grid-3" style="margin-bottom:0">
     <div>
       <h3>Recovery Score</h3>
-      <div class="chart-container" style="height:200px"><canvas id="recoveryChart"></canvas></div>
+      <div class="chart-container" style="height:270px"><canvas id="recoveryChart"></canvas></div>
     </div>
     <div>
       <h3>HRV Trend (7-day avg)</h3>
-      <div class="chart-container" style="height:200px"><canvas id="hrvChart"></canvas></div>
+      <div class="chart-container" style="height:270px"><canvas id="hrvChart"></canvas></div>
     </div>
     <div>
       <h3>Sleep Hours</h3>
-      <div class="chart-container" style="height:200px"><canvas id="sleepChart"></canvas></div>
+      <div class="chart-container" style="height:270px"><canvas id="sleepChart"></canvas></div>
     </div>
   </div>
   <div class="mini-stats" style="margin-top:12px">
@@ -367,7 +556,7 @@ body {
 </div>
 
 <!-- ROW 3: Workout Quality + FTP -->
-<div class="grid">
+<div id="training" class="grid">
   <div class="card">
     <h2><span class="icon">🏋️</span> Workout Quality Analysis</h2>
     <h3>Quality by Recovery Bracket</h3>
@@ -423,8 +612,9 @@ body {
 </div>
 
 <!-- ROW 4: Race Plan -->
-<div class="card" style="margin-bottom:20px">
-  <h2><span class="icon">🏁</span> Vatternrundan Race Plan &mdash; June 13, 2026</h2>
+<div id="race-plans" class="card" style="margin-bottom:20px">
+  <h2 class="collapsible-header" onclick="toggleSection(this)"><span><span class="icon">🏁</span> V&auml;tternrundan: 315km, June 13, Sub-10h target</span><span class="toggle-icon">▸</span></h2>
+  <div class="collapsible-content">
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <span class="badge badge-blue">315 km / 196 mi</span>
     <span class="badge badge-green">Target: Sub-10 Hours (finish by 1:20 PM)</span>
@@ -534,9 +724,107 @@ body {
   </div>
 </div>
 
-<!-- ROW 5: Coach Analysis -->
+<!-- ROW 4b: Halvvättern -->
+</div></div>
 <div class="card" style="margin-bottom:20px">
-  <h2><span class="icon">🎯</span> Coaching Assessment</h2>
+  <h2 class="collapsible-header" onclick="toggleSection(this)"><span><span class="icon">🔥</span> Halvv&auml;ttern: 150km, June 6, Dress Rehearsal</span><span class="toggle-icon">▸</span></h2>
+  <div class="collapsible-content">
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <span class="badge badge-blue">150 km / 93 mi</span>
+    <span class="badge badge-yellow">June 6, 2026 &middot; 7 days before V&auml;tternrundan</span>
+    <span class="badge badge-green">Dress Rehearsal / Peak Effort</span>
+    <span class="badge badge-blue">6 Service Stops</span>
+  </div>
+
+  <div class="grid" style="margin-bottom:0">
+    <div>
+      <h3>Route Overview</h3>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:12px">
+        150km loop starting and finishing in Motala. South along V&auml;ttern shore past Vadstena, climbs Omberg nature reserve, south to &Ouml;desh&ouml;g, east through forests, north through farmland via R&ouml;k and medieval churches to Sk&auml;nninge, back to Motala.
+      </p>
+
+      <h3>Service Stops</h3>
+      <div class="stop-timeline">
+        <div class="stop-item">
+          <div class="stop-name">Borghamn &mdash; 32 km</div>
+          <div class="stop-detail">Full service stop</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">Stocklycke &mdash; 42 km</div>
+          <div class="stop-detail">Water only</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">&Ouml;desh&ouml;g &mdash; 53 km</div>
+          <div class="stop-detail">Full service stop</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">Boet &mdash; 80 km</div>
+          <div class="stop-detail">Water only</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">R&ouml;k &mdash; 103 km</div>
+          <div class="stop-detail">Full service stop</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">Sk&auml;nninge &mdash; 127 km</div>
+          <div class="stop-detail">Full service stop</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>2025 Halvv&auml;ttern Performance (June 7, 2025)</h3>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">4h49m</div><div class="lbl">Time</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--cyan)">92.3 mi</div><div class="lbl">Distance</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--orange)">372</div><div class="lbl">TSS</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">0.88</div><div class="lbl">IF</div></div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">230W</div><div class="lbl">NP</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">211W</div><div class="lbl">Avg Power</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">145/167</div><div class="lbl">Avg/Max HR</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">86</div><div class="lbl">Cadence</div></div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="val" style="color:var(--purple)">2,628 ft</div><div class="lbl">Elevation</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--yellow)">3,670</div><div class="lbl">Calories</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">7 / 1</div><div class="lbl">RPE / Feeling</div></div>
+      </div>
+      <div class="insight-card" style="margin-top:12px;border-color:var(--orange);background:rgba(249,115,22,0.06)">
+        <div class="type" style="color:var(--orange)">Eiwe's 2025 Race Note</div>
+        "20 mph headwinds gusting to 45 mph on the large open fields was rough. Thankfully that headwind turned into a tailwind at the southern end."
+      </div>
+
+      <h3 style="margin-top:16px">2026 Targets (@ ~277W FTP)</h3>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">230-240W</div><div class="lbl">Target NP</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--cyan)">IF 0.83-0.87</div><div class="lbl">Target IF</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">&lt;4h49m</div><div class="lbl">Time Goal</div></div>
+      </div>
+      <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
+        <div class="type" style="color:var(--green)">Race Strategy</div>
+        This is the final hard effort before V&auml;tternrundan. Race it hard as a dress rehearsal &mdash; validate fitness, test fueling, and confirm pacing. The 1-week gap to V&auml;tternrundan is perfect: Halvv&auml;ttern doubles as both peak effort and start of taper. Eiwe did exactly this in 2025 with great results.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 5: Coach Analysis -->
+</div></div>
+<div id="coach" class="card" style="margin-bottom:20px">
+  <h2 class="collapsible-header" onclick="toggleSection(this)"><span><span class="icon">🎯</span> Coaching Assessment</span><span class="toggle-icon">▸</span></h2>
+  <div style="margin:12px 0">
+    <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
+      <strong>Key Takeaways:</strong>
+      <ul style="margin:8px 0 0 16px;line-height:2">
+        <li>CTL up 100%+ in 3 months (20s → 46). Training load progression is on track for June race. 4 consecutive weeks above 350 TSS.</li>
+        <li>Mental toughness confirmed by data: only 1.6-point quality spread across recovery brackets (r=0.11). Execute the plan regardless of Whoop color.</li>
+        <li>Race-day projections look strong: CTL ~61, TSB ~+23. Sub-10h Vatternrundan is very achievable with disciplined pacing (IF 0.64) and drafting.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="collapsible-content">
   <div class="coach-text">
     <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has climbed from the low 20s in late November to 46.0 as of today, a 100%+ increase in under three months. That is a strong, consistent base-building trajectory. Your average weekly TSS over the last 12 weeks sits at 289, with the last four weeks averaging 407 (excluding the flu week of Jan 5-11). This is exactly the kind of progressive loading we want to see heading into a build phase for a June race. You are ahead of where you were at this point in 2025.</p>
 
@@ -548,6 +836,8 @@ body {
 
     <p><strong>Race Readiness for Vatternrundan:</strong> At 121 days out, you are well-positioned. Your CTL of 46.0 gives you a solid platform. For a 315km ultra-endurance event, we want race-day CTL in the 55-65 range with TSB of +15 to +25. Based on your 2025 pre-race training pattern, the taper model projects CTL ~61 with TSB ~+23 on race day. That puts you squarely in the ideal window. The higher NP target of 175-180W (IF ~0.64) shows confidence backed by data, and is a significant step up from the earlier conservative estimates, while still being far more disciplined than 2025's IF 0.82. You should arrive at the start line fresh, fit, and ready to execute.</p>
 
+    <p><strong>Halvv&auml;ttern as Dress Rehearsal:</strong> Racing Halvv&auml;ttern 150km on June 6 &mdash; exactly one week before V&auml;tternrundan &mdash; is the ideal peak effort and fitness validation. Your 2025 Halvv&auml;ttern was exceptional: IF 0.88 and NP 230W in 20 mph headwinds gusting to 45 mph, finishing with RPE 7 and feeling great. That is a seriously strong ride in brutal conditions. With your projected FTP of ~277W this year (vs ~261W in 2025), a target NP of 230-240W (IF 0.83-0.87) is realistic and should yield a faster time. The Halvv&auml;ttern-to-V&auml;tternrundan 1-week gap is perfect: it serves as both a fitness validation and the natural start of taper. You did exactly this pattern in 2025 and arrived at V&auml;tternrundan strong. Race Halvv&auml;ttern hard, then taper for 7 days with easy spins and an opener session on June 10. This is a proven pattern for you.</p>
+
     <p><strong>Fueling Strategy Update:</strong> The Formula 369 drink mix is a strong choice. The 1:1 glucose-to-fructose ratio at 30g carbs per scoop is well-suited for high carb intake rates, and the 200mg sodium per serving helps with electrolyte replacement over a 10-hour effort. Targeting 80-90g carbs/hour with 3 bottles (2 cage + 1 flexible) plus supplemental gels should get you to the 800-900g total carbs needed. Practice this exact protocol on your long training rides so your gut is adapted by race day. The stop food choices (pickles for sodium, bread for easy carbs, and the hot meal at J&ouml;nk&ouml;ping) are smart for a mid-race reset.</p>
 
     <p><strong>2025 Race Analysis:</strong> Your 2025 solo effort at IF 0.82 and NP 215W was actually quite aggressive for a 10-hour event. The fact that you finished strong with a feeling of 1/great shows deep endurance capacity and mental toughness. That performance gives us confidence that the 2026 target of 175-180W NP (IF ~0.64) is very achievable. You are essentially planning to ride at 78-84% of last year's intensity, with the added benefit of drafting.</p>
@@ -558,80 +848,17 @@ body {
 
     <p><strong>FTP 300W Goal Assessment:</strong> Your current FTP of 263W with a target of 300W by year-end requires 0.80W/week, which is achievable for a motivated, consistent athlete with coaching support. The projected 277W at Vatternrundan is realistic and gives you a strong race platform. At 277W, your target NP of 175-180W (63-65% FTP) is more disciplined than 2025 (IF 0.82) while still being a meaningful effort. The estimated TSS of ~411 (IF 0.64 over 9.1 hours of riding plus 54 minutes of stops) is a sustainable load that leaves you strong for the final push. After the race, the summer block through fall will be where the final push to 300W happens.</p>
 
-    <p><strong>Recommendations for the Next 121 Days:</strong> (1) Continue the current base progression through March, targeting 350-400 TSS/week. (2) Transition to build phase in April/May with sweet spot and threshold work; introduce race-specific efforts of 3-4 hours at target race IF (0.64). (3) Practice the Formula 369 fueling protocol on every long ride: 80-90g carbs/hour, same bottles, same mixing ratios. Train your gut now. (4) Prioritize sleep: aim for 7.5+ hours, especially during heavy loading weeks. (5) Schedule a proper FTP test around Feb 26 as planned; this will calibrate all your training zones. (6) Do at least one 150+ mile training ride in April/May with your riding partner to practice drafting, stop coordination, and the full fueling plan. (7) The taper starting May 29 should be followed precisely: -30% volume week -2, -50% week -1, with an opener session June 10. (8) Practice waking at 2:00 AM and riding in the week before the race so the early start is not a shock.</p>
+    <p><strong>Recommendations for the Next 121 Days:</strong> (1) Continue the current base progression through March, targeting 350-400 TSS/week. (2) Transition to build phase in April/May with sweet spot and threshold work; introduce race-specific efforts of 3-4 hours at target race IF (0.64). (3) Practice the Formula 369 fueling protocol on every long ride: 80-90g carbs/hour, same bottles, same mixing ratios. Train your gut now. (4) Prioritize sleep: aim for 7.5+ hours, especially during heavy loading weeks. (5) Schedule a proper FTP test around Feb 26 as planned; this will calibrate all your training zones. (6) Do at least one 150+ mile training ride in April/May with your riding partner to practice drafting, stop coordination, and the full fueling plan. (7) Race Halvv&auml;ttern hard on June 6 as your peak effort, then taper for 7 days: easy spins June 7-9, opener session June 10, rest June 11-12. (8) Practice waking at 2:00 AM and riding in the week before the race so the early start is not a shock.</p>
   </div>
 </div>
 
-<!-- ROW 6: Insights + Weekly Summary -->
-<div class="grid">
-  <div class="card">
-    <h2><span class="icon">💡</span> Key Insights</h2>
-    <div class="insight-card">
-      <div class="type">🟢 Recovery Correlation (High Confidence)</div>
-      Recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
-    </div>
-    <div class="insight-card" style="border-color:var(--cyan);background:rgba(6,182,212,0.06)">
-      <div class="type" style="color:var(--cyan)">🟡 HRV Threshold (Medium)</div>
-      Best workouts (quality &ge;80, n=145) typically occur when HRV is above 31ms. Average HRV on good days: 36ms vs other days: 34ms.
-    </div>
-    <div class="insight-card" style="border-color:var(--yellow);background:rgba(234,179,8,0.06)">
-      <div class="type" style="color:var(--yellow)">🔴 Sleep Impact (Low Confidence)</div>
-      Sleep hours correlate with workout quality at r=0.09 (n=159). Average sleep 6.7 hrs. 7.5+ hrs shows quality of 87.1 vs 86.2 on &lt;6 hr nights. Minimal difference.
-    </div>
-    <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
-      <div class="type" style="color:var(--green)">🟢 Consistency (High Confidence)</div>
-      Workout completion rate: 75.1% (163/217 planned workouts). Recent 4-week streak at 100% completion.
-    </div>
-    <div class="insight-card" style="border-color:var(--purple);background:rgba(168,85,247,0.06)">
-      <div class="type" style="color:var(--purple)">🟢 FTP Trend (High Confidence)</div>
-      Need 0.80W/week to reach 300W by end of 2026. On track. Projected ~277W at Vatternrundan.
-    </div>
-  </div>
-
-  <div class="card">
-    <h2><span class="icon">📋</span> This Week (Feb 9-15, 2026)</h2>
-    <div class="mini-stats">
-      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">138</div><div class="lbl">TSS Actual</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">155</div><div class="lbl">TSS Planned</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--green-light)">-11%</div><div class="lbl">Variance</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--cyan)">2.7h</div><div class="lbl">Hours</div></div>
-    </div>
-    <div class="mini-stats">
-      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/2</div><div class="lbl">Completed</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--purple)">0.69</div><div class="lbl">Avg IF</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--yellow)">62%</div><div class="lbl">Avg Recovery</div></div>
-    </div>
-
-    <h3>Workouts</h3>
-    <table class="segment-table">
-      <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
-      <tbody>
-        <tr><td>Tue</td><td>Endurance</td><td>40.5</td><td>149W</td><td><span class="badge badge-yellow">74</span></td></tr>
-        <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
-        <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
-      </tbody>
-    </table>
-
-    <h3 style="margin-top:16px">PMC Trend</h3>
-    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
-      CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">↑</span><br>
-      ATL: 50.0<br>
-      TSB: -4.0 &mdash; Absorbing load well<br>
-      <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W (0.80 W/week needed)</span>
-    </div>
-
-    <h3 style="margin-top:16px">Recovery This Week</h3>
-    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
-      Avg Recovery: 62% <span class="badge badge-yellow">Yellow</span><br>
-      Avg HRV: 35ms<br>
-      Avg Sleep: 6.8 hrs
-    </div>
-  </div>
-</div>
+<!-- ROW 6: Insights + Weekly Summary (moved to top, kept here as anchor) -->
+</div></div>
+<!-- This Week and Insights already moved to position #2 above -->
 
 <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
   Generated Feb 12, 2026 &middot; Data from TrainingPeaks + Whoop &middot; Coaching by Max Blinderman
+  <br><div class="data-freshness"><span class="pulse"></span> Last synced: Feb 12, 2026</div>
 </div>
 
 </div>
@@ -730,42 +957,76 @@ Chart.defaults.borderColor = 'rgba(42,45,58,0.5)';
 Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 Chart.defaults.font.size = 11;
 
-// TSS Chart
-new Chart(document.getElementById('tssChart'), {
-  type: 'bar',
-  data: {
-    labels: weeklyTSS.map(d=>d.week),
-    datasets: [{
-      data: weeklyTSS.map(d=>d.tss),
-      backgroundColor: weeklyTSS.map(d=> {
-        if(d.flu) return 'rgba(239,68,68,0.7)';
-        if(d.tss>=500) return 'rgba(59,130,246,0.8)';
-        if(d.tss>=300) return 'rgba(59,130,246,0.5)';
-        return 'rgba(59,130,246,0.25)';
-      }),
-      borderRadius: 3,
-      borderSkipped: false,
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: {display:false},
-      tooltip: {
-        callbacks: {
-          label: ctx => {
-            let extra = weeklyTSS[ctx.dataIndex].flu ? ' (FLU WEEK)' : '';
-            return `TSS: ${ctx.raw}${extra}`;
+// Collapsible section toggle
+function toggleSection(header) {
+  header.classList.toggle('open');
+  const content = header.nextElementSibling;
+  while(content && !content.classList.contains('collapsible-content')) { break; }
+  // Find the collapsible-content sibling
+  let el = header.nextElementSibling;
+  while(el) {
+    if(el.classList && el.classList.contains('collapsible-content')) {
+      el.classList.toggle('open');
+      break;
+    }
+    el = el.nextElementSibling;
+  }
+}
+
+// TSS Chart - default to last 20 weeks
+let showFullTSS = false;
+let tssChart;
+function getTSSSlice() {
+  if(showFullTSS) return weeklyTSS;
+  return weeklyTSS.slice(-20);
+}
+function renderTSSChart() {
+  const slice = getTSSSlice();
+  if(tssChart) tssChart.destroy();
+  tssChart = new Chart(document.getElementById('tssChart'), {
+    type: 'bar',
+    data: {
+      labels: slice.map(d=>d.week),
+      datasets: [{
+        data: slice.map(d=>d.tss),
+        backgroundColor: slice.map(d=> {
+          if(d.flu) return 'rgba(239,68,68,0.7)';
+          if(d.tss>=500) return 'rgba(59,130,246,0.8)';
+          if(d.tss>=300) return 'rgba(59,130,246,0.5)';
+          return 'rgba(59,130,246,0.25)';
+        }),
+        borderRadius: 3,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const idx = showFullTSS ? ctx.dataIndex : ctx.dataIndex + (weeklyTSS.length - 20);
+              let extra = weeklyTSS[idx] && weeklyTSS[idx].flu ? ' (FLU WEEK)' : '';
+              return `TSS: ${ctx.raw}${extra}`;
+            }
           }
         }
+      },
+      scales: {
+        x: {ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},
+        y: {beginAtZero:true,title:{display:true,text:'Weekly TSS'}}
       }
-    },
-    scales: {
-      x: {ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},
-      y: {beginAtZero:true,title:{display:true,text:'Weekly TSS'}}
     }
-  }
-});
+  });
+}
+function toggleTSSRange() {
+  showFullTSS = !showFullTSS;
+  document.getElementById('tssToggle').textContent = showFullTSS ? 'Show last 20 weeks' : 'Show full year';
+  document.getElementById('tssRangeLabel').textContent = showFullTSS ? '(12 Months)' : '(Last 20 Weeks)';
+  renderTSSChart();
+}
+renderTSSChart();
 
 // PMC Chart
 new Chart(document.getElementById('pmcChart'), {
