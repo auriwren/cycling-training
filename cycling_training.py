@@ -1911,6 +1911,478 @@ def get_top_insight():
         return None
 
 
+# ── Phase 5: Vatternrundan Race Prep ──────────────────────────────
+
+RACE_DATE = date(2026, 6, 12)
+RACE_DISTANCE_KM = 315
+RACE_TARGET_HOURS = 10.0
+RACE_TARGET_AVG_KPH = 31.5
+
+VATTERN_SEGMENTS = [
+    {"name": "Motala -> Karlsborg (East shore)", "km_start": 0, "km_end": 50, "terrain": "Rolling", "notes": "Start discipline! Stay easy."},
+    {"name": "Karlsborg -> Hjo (West shore)", "km_start": 50, "km_end": 120, "terrain": "Some hills", "notes": "Find rhythm, don't chase."},
+    {"name": "Hjo -> Jonkoping (Southern tip)", "km_start": 120, "km_end": 170, "terrain": "Exposed/wind", "notes": "Wind exposed. Stay aero, draft."},
+    {"name": "Jonkoping -> Granna (East shore)", "km_start": 170, "km_end": 231, "terrain": "Climbing", "notes": "Granna hill is notable. Cap climbs at 72% FTP."},
+    {"name": "Granna -> Motala (Final stretch)", "km_start": 231, "km_end": 315, "terrain": "Mixed", "notes": "Fatigue management. Push if legs are good."},
+]
+
+REST_STOPS_KM = [50, 100, 120, 150, 170, 200, 231, 260, 290, 310]
+
+
+def _get_current_ftp():
+    """Get current FTP from ftp_history."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT ftp_watts, test_date FROM ftp_history ORDER BY test_date DESC LIMIT 1")
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if row:
+        return row[0], row[1]
+    return 263, date.today()
+
+
+def _project_ftp_at_race():
+    """Project FTP at race day using linear trend."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT test_date, ftp_watts FROM ftp_history ORDER BY test_date")
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    if not rows:
+        return 263
+    current_ftp = rows[-1][1]
+    target_ftp = 300
+    target_date = date(2026, 12, 31)
+    weeks_to_target = max(1, (target_date - date.today()).days / 7)
+    weekly_gain = (target_ftp - current_ftp) / weeks_to_target
+    weeks_to_race = max(0, (RACE_DATE - date.today()).days / 7)
+    return round(current_ftp + weekly_gain * weeks_to_race)
+
+
+def _get_current_pmc():
+    """Get latest CTL/ATL/TSB."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT ctl, atl, tsb, date FROM training_load ORDER BY date DESC LIMIT 1")
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if row:
+        return {"ctl": float(row[0]), "atl": float(row[1]), "tsb": float(row[2]), "date": row[3]}
+    return {"ctl": 0, "atl": 0, "tsb": 0, "date": date.today()}
+
+
+def cmd_race_plan():
+    """Vatternrundan pacing strategy."""
+    current_ftp, ftp_date = _get_current_ftp()
+    projected_ftp = _project_ftp_at_race()
+    days_to_race = (RACE_DATE - date.today()).days
+
+    print("=" * 60)
+    print("    🏁 VATTERNRUNDAN RACE PLAN")
+    print(f"    {RACE_DATE} | {RACE_DISTANCE_KM}km | Target: sub-{RACE_TARGET_HOURS:.0f} hours")
+    print("=" * 60)
+    print(f"\n  Days to race: {days_to_race}")
+    print(f"  Current FTP: {current_ftp}W (as of {ftp_date})")
+    print(f"  Projected FTP at race: ~{projected_ftp}W")
+    print(f"  Required avg speed: {RACE_TARGET_AVG_KPH} kph")
+
+    for ftp_label, ftp_val in [("Current FTP", current_ftp), ("Projected race-day FTP", projected_ftp)]:
+        print(f"\n{'─'*60}")
+        print(f"  📊 PACING @ {ftp_label}: {ftp_val}W")
+        print(f"{'─'*60}")
+
+        # Overall target NP range
+        np_low = round(ftp_val * 0.55)
+        np_high = round(ftp_val * 0.63)
+        print(f"  Target NP range: {np_low}-{np_high}W (55-63% FTP)")
+        print(f"  Climb cap: {round(ftp_val * 0.72)}W (72% FTP) | Hard limit: {round(ftp_val * 0.75)}W (75%)")
+
+        # Segment breakdown
+        print(f"\n  {'Segment':<38} {'Km':>7} {'%FTP':>7} {'Watts':>7}")
+        print("  " + "-" * 62)
+
+        segments_pacing = [
+            ("First 100km (discipline!)", "0-100", 0.57, 0.60),
+            ("Km 100-230 (rhythm)", "100-230", 0.60, 0.65),
+            ("Km 230-315 (finish strong)", "230-315", 0.65, 0.70),
+        ]
+        for seg_name, km_range, pct_low, pct_high in segments_pacing:
+            w_low = round(ftp_val * pct_low)
+            w_high = round(ftp_val * pct_high)
+            pct_str = f"{pct_low*100:.0f}-{pct_high*100:.0f}%"
+            print(f"  {seg_name:<38} {km_range:>7} {pct_str:>7} {w_low}-{w_high:>3}W")
+
+        # Flat/climb targets
+        flat_low = round(ftp_val * 0.57)
+        flat_high = round(ftp_val * 0.62)
+        climb_max = round(ftp_val * 0.72)
+        print(f"\n  Flat sections: {flat_low}-{flat_high}W (57-62% FTP)")
+        print(f"  Climbs: up to {climb_max}W (72% FTP max)")
+
+        # Estimated TSS
+        # TSS = (duration_seconds * NP * IF) / (FTP * 3600) * 100
+        # For ~10 hours at ~59% FTP: IF = 0.59, NP = 0.59*FTP
+        est_if = 0.59
+        est_duration_hrs = RACE_TARGET_HOURS
+        est_tss = round(est_if * est_if * est_duration_hrs * 100)
+        print(f"\n  Estimated TSS: ~{est_tss} (IF ~{est_if:.2f} over {est_duration_hrs:.0f}hrs)")
+        est_time_h = int(RACE_DISTANCE_KM / RACE_TARGET_AVG_KPH)
+        est_time_m = int((RACE_DISTANCE_KM / RACE_TARGET_AVG_KPH - est_time_h) * 60)
+        print(f"  Estimated ride time: ~{est_time_h}h{est_time_m:02d}m (at {RACE_TARGET_AVG_KPH} kph avg)")
+
+    # Course profile
+    print(f"\n{'─'*60}")
+    print("  🗺️  COURSE SEGMENTS")
+    print(f"{'─'*60}")
+    for seg in VATTERN_SEGMENTS:
+        dist = seg["km_end"] - seg["km_start"]
+        print(f"\n  Km {seg['km_start']}-{seg['km_end']} ({dist}km): {seg['name']}")
+        print(f"    Terrain: {seg['terrain']}")
+        print(f"    Strategy: {seg['notes']}")
+
+    # Rest stop strategy
+    print(f"\n{'─'*60}")
+    print("  🍌 REST STOP / FUELING STRATEGY")
+    print(f"{'─'*60}")
+    print("  Rule: Fuel every 50km. Max 5 min per stop.")
+    print("  Target: 60-90g carbs/hour from the start.")
+    print("  Hydration: 500-750ml/hour depending on temp.")
+    print(f"\n  {'Stop':>6}  {'Km':>5}  {'Est. Time':>10}  {'Action'}")
+    print("  " + "-" * 50)
+    for i, km in enumerate(REST_STOPS_KM):
+        est_hrs = km / RACE_TARGET_AVG_KPH
+        h = int(est_hrs)
+        m = int((est_hrs - h) * 60)
+        if i == len(REST_STOPS_KM) - 1:
+            action = "Splash-and-go. Almost there!"
+        elif km <= 100:
+            action = "Quick fuel. Don't linger."
+        elif km <= 230:
+            action = "Fuel + stretch. Max 5 min."
+        else:
+            action = "Quick fuel. Push to finish."
+        print(f"  {i+1:>5})  {km:>4}km  {h}h{m:02d}m in   {action}")
+
+    print(f"\n  Night section: ~Km 150-280 (roughly 10pm-4am)")
+    print("  Keep eating! Appetite drops at night but fueling is critical.")
+    print("\n" + "=" * 60)
+
+
+def cmd_race_weather():
+    """Weather forecast for Motala, Sweden (race location)."""
+    days_to_race = (RACE_DATE - date.today()).days
+
+    print("=" * 60)
+    print("    🌤️  VATTERNRUNDAN WEATHER — Motala, Sweden")
+    print(f"    Race date: {RACE_DATE} ({days_to_race} days away)")
+    print("=" * 60)
+
+    if days_to_race > 14:
+        print(f"\n  ⚠️  Race is {days_to_race} days away. Detailed forecasts not available yet.")
+        print(f"\n  📊 JUNE CLIMATE AVERAGES FOR MOTALA:")
+        print(f"    Temperature: 55-70F (13-21C)")
+        print(f"    Overnight lows: 45-55F (7-13C)")
+        print(f"    Precipitation: ~50mm for June (moderate)")
+        print(f"    Daylight: ~18 hours (sunrise ~3:30am, sunset ~10:00pm)")
+        print(f"    Wind: Variable, lake effect. West/SW common.")
+        print(f"\n  🌅 Race timing:")
+        print(f"    Start: Saturday late afternoon/evening")
+        print(f"    Night section: ~10pm - 4am (short Nordic night)")
+        print(f"    Finish: Sunday morning/midday")
+        print(f"\n  👕 LIKELY KIT (based on June averages):")
+        print(f"    Start (afternoon, ~65F): Bib shorts, short sleeve jersey, arm warmers in pocket")
+        print(f"    Evening (55-60F): Add arm warmers, vest")
+        print(f"    Night (45-55F): Long sleeve jersey, knee warmers, vest, REFLECTIVE VEST + LIGHTS")
+        print(f"    Morning (50-60F): Shed layers as sun rises")
+        print(f"\n  ⚡ MANDATORY for night section:")
+        print(f"    - Reflective vest")
+        print(f"    - Front + rear lights")
+        print(f"    - Extra layer for 3am temp drop")
+    else:
+        # Fetch actual forecast from yr.no
+        try:
+            resp = requests.get(
+                "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=58.537&lon=15.047",
+                headers={"User-Agent": "AuriWren/1.0 auri@auri.email"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"\n  ❌ Weather fetch failed: {e}")
+            print("  Falling back to climate averages (see above).")
+            return
+
+        timeseries = data.get("properties", {}).get("timeseries", [])
+        if not timeseries:
+            print("\n  ❌ No forecast data available.")
+            return
+
+        # Show next 48 hours of forecast
+        print(f"\n  📅 CURRENT FORECAST (yr.no):")
+        print(f"\n  {'Time (UTC)':<18} {'Temp':>6} {'Wind':>6} {'Precip':>7} {'Conditions'}")
+        print("  " + "-" * 55)
+        shown = 0
+        for entry in timeseries[:48]:
+            t = entry.get("time", "")
+            instant = entry.get("data", {}).get("instant", {}).get("details", {})
+            temp_c = instant.get("air_temperature", 0)
+            temp_f = c_to_f(temp_c)
+            wind_mps = instant.get("wind_speed", 0)
+            wind_mph = round(wind_mps * 2.237)
+
+            next1h = entry.get("data", {}).get("next_1_hours", {})
+            precip = next1h.get("details", {}).get("precipitation_amount", 0)
+            symbol = next1h.get("summary", {}).get("symbol_code", "")
+
+            # Only show every 3 hours
+            hour = t[11:13] if len(t) > 13 else ""
+            if hour and int(hour) % 3 != 0:
+                continue
+
+            time_str = t[:16].replace("T", " ")
+            precip_str = f"{precip:.1f}mm" if precip > 0 else "dry"
+            print(f"  {time_str:<18} {temp_f:>4}F {wind_mph:>4}mph {precip_str:>7} {symbol}")
+            shown += 1
+            if shown >= 16:
+                break
+
+        # Kit recommendation based on forecast temps
+        temps = [c_to_f(e.get("data", {}).get("instant", {}).get("details", {}).get("air_temperature", 15))
+                 for e in timeseries[:24]]
+        has_rain = any(e.get("data", {}).get("next_1_hours", {}).get("details", {}).get("precipitation_amount", 0) > 0.5
+                      for e in timeseries[:24])
+        min_temp = min(temps) if temps else 55
+        max_temp = max(temps) if temps else 65
+        avg_temp = sum(temps) / len(temps) if temps else 60
+
+        print(f"\n  📊 24hr range: {min_temp}F - {max_temp}F (avg {avg_temp:.0f}F)")
+        if has_rain:
+            print("  🌧️  Rain expected!")
+
+        print(f"\n  👕 KIT RECOMMENDATION:")
+        if min_temp < 45 or has_rain:
+            print("    Bib tights, long sleeve jersey, rain jacket, full gloves, shoe covers")
+        elif min_temp < 55:
+            print("    Bib shorts, long sleeve jersey, knee warmers, vest")
+        elif min_temp < 65:
+            print("    Bib shorts, short sleeve + arm warmers, vest in pocket")
+        else:
+            print("    Bib shorts, short sleeve jersey, arm coolers")
+
+        print(f"\n  ⚡ Night section (always pack):")
+        print(f"    - Reflective vest + lights (mandatory)")
+        print(f"    - Extra thermal layer for overnight temp drop")
+
+    print("\n" + "=" * 60)
+
+
+def cmd_taper():
+    """Taper protocol for Vatternrundan."""
+    days_to_race = (RACE_DATE - date.today()).days
+    weeks_to_race = days_to_race / 7.0
+    current_ftp, _ = _get_current_ftp()
+    pmc = _get_current_pmc()
+
+    print("=" * 60)
+    print("    📉 VATTERNRUNDAN TAPER PROTOCOL")
+    print(f"    Race: {RACE_DATE} | {days_to_race} days / {weeks_to_race:.1f} weeks away")
+    print("=" * 60)
+
+    print(f"\n  Current PMC ({pmc['date']}):")
+    print(f"    CTL (fitness): {pmc['ctl']:.1f}")
+    print(f"    ATL (fatigue): {pmc['atl']:.1f}")
+    print(f"    TSB (form):    {pmc['tsb']:+.1f}")
+
+    # Project TSB at race day
+    # If current training load continues, CTL and ATL decay toward 0 without new TSS
+    # For projection: assume avg daily TSS from recent CTL
+    avg_daily_tss = pmc['ctl']  # CTL approximates avg daily TSS
+    ctl_proj = pmc['ctl']
+    atl_proj = pmc['atl']
+    for d in range(days_to_race):
+        if days_to_race - d > 14:
+            tss = avg_daily_tss  # Normal training
+        elif days_to_race - d > 7:
+            tss = avg_daily_tss * 0.7  # Week -2: -30%
+        elif days_to_race - d > 2:
+            tss = avg_daily_tss * 0.5  # Week -1: -50%
+        else:
+            tss = 15  # Easy spins
+        ctl_proj = ctl_proj + (tss - ctl_proj) / 42.0
+        atl_proj = atl_proj + (tss - atl_proj) / 7.0
+    tsb_proj = ctl_proj - atl_proj
+
+    print(f"\n  📅 PROJECTED PMC AT RACE DAY (with taper):")
+    print(f"    CTL: ~{ctl_proj:.1f}")
+    print(f"    ATL: ~{atl_proj:.1f}")
+    print(f"    TSB: ~{tsb_proj:+.1f}")
+    target_tsb_ok = 15 <= tsb_proj <= 25
+    print(f"    Target TSB: +15 to +25 {'✅' if target_tsb_ok else '⚠️ adjust taper'}")
+
+    # Training phase
+    print(f"\n{'─'*60}")
+    if days_to_race > 84:  # >12 weeks
+        phase = "BASE"
+        desc = "Build aerobic engine. Long endurance rides, zone 2."
+        print(f"  🔵 CURRENT PHASE: {phase}")
+        print(f"     {desc}")
+    elif days_to_race > 42:  # 6-12 weeks
+        phase = "BUILD"
+        desc = "Add intensity. Sweet spot, threshold intervals. Increase TSS."
+        print(f"  🟡 CURRENT PHASE: {phase}")
+        print(f"     {desc}")
+    elif days_to_race > 14:  # 2-6 weeks
+        phase = "PEAK"
+        desc = "Highest training load. Race-specific long rides. Simulate race fueling."
+        print(f"  🟠 CURRENT PHASE: {phase}")
+        print(f"     {desc}")
+    else:
+        phase = "TAPER"
+        print(f"  🟢 CURRENT PHASE: {phase} -- Race is imminent!")
+
+    if days_to_race <= 14:
+        print(f"\n{'─'*60}")
+        print("  📋 TAPER PROTOCOL (you're in the taper window!)")
+        print(f"{'─'*60}")
+
+        taper_start = RACE_DATE - timedelta(days=14)
+        week2_end = RACE_DATE - timedelta(days=7)
+        opener_day = RACE_DATE - timedelta(days=3)
+
+        print(f"\n  Week -2 ({taper_start} to {week2_end}):")
+        print(f"    Volume: -30% of normal")
+        print(f"    Intensity: 2 short sweet spot sessions")
+        print(f"    Example: 2x20min @ {round(current_ftp * 0.88)}-{round(current_ftp * 0.93)}W")
+
+        print(f"\n  Week -1 ({week2_end} to {RACE_DATE}):")
+        print(f"    Volume: -50% of normal")
+        print(f"    One opener session on {opener_day}:")
+        print(f"      Warmup 15min, then 4x1min @ {round(current_ftp * 1.15)}-{round(current_ftp * 1.20)}W (VO2max)")
+        print(f"      Full recovery between intervals")
+
+        print(f"\n  Days -2 to -1 ({RACE_DATE - timedelta(days=2)} - {RACE_DATE - timedelta(days=1)}):")
+        print(f"    Easy spins only: 30-45 min at {round(current_ftp * 0.45)}-{round(current_ftp * 0.55)}W")
+        print(f"    Focus: hydration, carb loading, sleep")
+    else:
+        print(f"\n{'─'*60}")
+        print("  📋 TAPER TIMELINE")
+        print(f"{'─'*60}")
+        print(f"    Taper starts: {RACE_DATE - timedelta(days=14)} ({days_to_race - 14} days from now)")
+        print(f"    Peak phase until then: keep building fitness")
+        print(f"    Last hard week: {RACE_DATE - timedelta(days=21)} to {RACE_DATE - timedelta(days=15)}")
+
+    # Key dates
+    print(f"\n{'─'*60}")
+    print("  📅 KEY DATES")
+    print(f"{'─'*60}")
+    key_dates = [
+        (RACE_DATE - timedelta(days=42), "Build phase starts (6 weeks out)"),
+        (RACE_DATE - timedelta(days=21), "Peak week (3 weeks out)"),
+        (RACE_DATE - timedelta(days=14), "Taper begins"),
+        (RACE_DATE - timedelta(days=7), "Final taper week"),
+        (RACE_DATE - timedelta(days=3), "Opener session"),
+        (RACE_DATE - timedelta(days=1), "Easy spin + prep"),
+        (RACE_DATE, "🏁 RACE DAY"),
+    ]
+    for kd, desc in key_dates:
+        delta = (kd - date.today()).days
+        marker = " ◀ TODAY" if delta == 0 else (f" ({delta}d away)" if delta > 0 else f" ({-delta}d ago)")
+        print(f"    {kd}  {desc}{marker}")
+
+    print("\n" + "=" * 60)
+
+
+def cmd_race_countdown():
+    """Combined race dashboard: plan + weather + taper + FTP projection."""
+    days_to_race = (RACE_DATE - date.today()).days
+    current_ftp, ftp_date = _get_current_ftp()
+    projected_ftp = _project_ftp_at_race()
+    pmc = _get_current_pmc()
+
+    print("=" * 60)
+    print("    🏁 VATTERNRUNDAN RACE COUNTDOWN")
+    print(f"    {RACE_DATE} | {days_to_race} days to go")
+    print("=" * 60)
+
+    # FTP summary
+    print(f"\n  ⚡ FTP: {current_ftp}W now -> ~{projected_ftp}W projected at race")
+    target_np_now = f"{round(current_ftp * 0.55)}-{round(current_ftp * 0.63)}W"
+    target_np_proj = f"{round(projected_ftp * 0.55)}-{round(projected_ftp * 0.63)}W"
+    print(f"  Target NP: {target_np_now} (current) | {target_np_proj} (projected)")
+
+    # PMC summary
+    print(f"\n  📊 Fitness: CTL {pmc['ctl']:.1f} | Fatigue: ATL {pmc['atl']:.1f} | Form: TSB {pmc['tsb']:+.1f}")
+
+    # Training phase
+    if days_to_race > 84:
+        phase = "🔵 BASE"
+    elif days_to_race > 42:
+        phase = "🟡 BUILD"
+    elif days_to_race > 14:
+        phase = "🟠 PEAK"
+    else:
+        phase = "🟢 TAPER"
+    print(f"  Phase: {phase}")
+
+    # Pacing summary
+    print(f"\n{'─'*60}")
+    print("  🏁 PACING SUMMARY")
+    print(f"{'─'*60}")
+    print(f"  First 100km: max {round(current_ftp * 0.60)}W ({round(projected_ftp * 0.60)}W projected)")
+    print(f"  Km 100-230:  {round(current_ftp * 0.60)}-{round(current_ftp * 0.65)}W")
+    print(f"  Km 230-315:  {round(current_ftp * 0.65)}-{round(current_ftp * 0.70)}W")
+    print(f"  Climb cap:   {round(current_ftp * 0.72)}W")
+    est_tss = round(0.59 * 0.59 * RACE_TARGET_HOURS * 100)
+    print(f"  Est. TSS: ~{est_tss} | Est. time: ~{RACE_DISTANCE_KM / RACE_TARGET_AVG_KPH:.1f}hrs")
+
+    # Weather preview
+    print(f"\n{'─'*60}")
+    print("  🌤️  WEATHER PREVIEW")
+    print(f"{'─'*60}")
+    if days_to_race > 14:
+        print(f"  Forecast available in {days_to_race - 14} days.")
+        print(f"  June averages: 55-70F, overnight lows 45-55F, ~18hrs daylight")
+    else:
+        try:
+            resp = requests.get(
+                "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=58.537&lon=15.047",
+                headers={"User-Agent": "AuriWren/1.0 auri@auri.email"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            ts = resp.json().get("properties", {}).get("timeseries", [])
+            if ts:
+                temps = [c_to_f(e["data"]["instant"]["details"].get("air_temperature", 15)) for e in ts[:24]]
+                print(f"  Next 24h: {min(temps)}F - {max(temps)}F")
+        except Exception:
+            print(f"  Weather fetch failed. Run `cycling-training race-weather` for details.")
+
+    # Taper status
+    print(f"\n{'─'*60}")
+    print("  📉 TAPER STATUS")
+    print(f"{'─'*60}")
+    if days_to_race <= 14:
+        print(f"  🟢 IN TAPER WINDOW")
+        if days_to_race > 7:
+            print(f"  Week -2: Volume -30%. 2 short sweet spot sessions.")
+        elif days_to_race > 2:
+            print(f"  Week -1: Volume -50%. Opener {RACE_DATE - timedelta(days=3)}.")
+        else:
+            print(f"  Final days: Easy spins only. Rest, hydrate, carb load.")
+    else:
+        print(f"  Taper starts: {RACE_DATE - timedelta(days=14)} ({days_to_race - 14} days from now)")
+
+    # Countdown
+    print(f"\n{'─'*60}")
+    weeks = days_to_race // 7
+    rem_days = days_to_race % 7
+    print(f"  ⏱️  {weeks} weeks, {rem_days} days to Vatternrundan")
+    print(f"     {RACE_DISTANCE_KM}km around Lake Vattern. Target: sub-{RACE_TARGET_HOURS:.0f} hours.")
+    print(f"     You've got this. 💪")
+    print("\n" + "=" * 60)
+
+
 # ── CLI ───────────────────────────────────────────────────────────
 
 def main():
@@ -1947,6 +2419,11 @@ def main():
     sub.add_parser("trends", help="Long-term training trends")
     sub.add_parser("insights", help="Generate AI-driven training insights")
 
+    sub.add_parser("race-plan", help="Vatternrundan pacing strategy")
+    sub.add_parser("race-weather", help="Weather forecast for Motala (race location)")
+    sub.add_parser("taper", help="Taper protocol for Vatternrundan")
+    sub.add_parser("race-countdown", help="Combined race dashboard")
+
     args = parser.parse_args()
 
     if args.command == "sync-whoop":
@@ -1975,6 +2452,14 @@ def main():
         cmd_trends()
     elif args.command == "insights":
         cmd_insights()
+    elif args.command == "race-plan":
+        cmd_race_plan()
+    elif args.command == "race-weather":
+        cmd_race_weather()
+    elif args.command == "taper":
+        cmd_taper()
+    elif args.command == "race-countdown":
+        cmd_race_countdown()
     else:
         parser.print_help()
 
