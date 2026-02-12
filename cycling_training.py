@@ -1913,7 +1913,8 @@ def get_top_insight():
 
 # ── Phase 5: Vatternrundan Race Prep ──────────────────────────────
 
-RACE_DATE = date(2026, 6, 13)  # Start 03:20 AM June 13
+RACE_DATE = date(2026, 6, 13)  # Vätternrundan start 03:20 AM June 13
+HALVVATTERN_DATE = date(2026, 6, 6)  # Halvvättern 150km, warm-up race
 RACE_DISTANCE_KM = 315
 RACE_TARGET_HOURS = 10.0
 RACE_TARGET_AVG_KPH = 31.5
@@ -2330,11 +2331,11 @@ def cmd_taper():
     key_dates = [
         (RACE_DATE - timedelta(days=42), "Build phase starts (6 weeks out)"),
         (RACE_DATE - timedelta(days=21), "Peak week (3 weeks out)"),
-        (RACE_DATE - timedelta(days=14), "Taper begins"),
-        (RACE_DATE - timedelta(days=7), "Final taper week"),
-        (RACE_DATE - timedelta(days=3), "Opener session"),
+        (HALVVATTERN_DATE, "🏁 HALVVÄTTERN 150km (dress rehearsal / peak effort)"),
+        (HALVVATTERN_DATE + timedelta(days=1), "Taper begins (easy spins only)"),
+        (RACE_DATE - timedelta(days=3), "Opener session (4x1min VO2max)"),
         (RACE_DATE - timedelta(days=1), "Easy spin + prep"),
-        (RACE_DATE, "🏁 RACE DAY"),
+        (RACE_DATE, "🏁 VÄTTERNRUNDAN 315km — 03:20 AM"),
     ]
     for kd, desc in key_dates:
         delta = (kd - date.today()).days
