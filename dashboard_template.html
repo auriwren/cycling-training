@@ -551,19 +551,20 @@ __WEEK_WORKOUT_ROWS__
 
 <!-- Power Zone Distribution -->
 <div class="card" style="margin-bottom:20px">
-  <h2><span class="icon">🎯</span> Power Zone Distribution (by Workout Type)</h2>
+  <h2><span class="icon">🎯</span> Power Zone Distribution (from Strava Power Data)</h2>
   <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
     <div style="width:240px;height:240px;flex-shrink:0"><canvas id="zoneDonut"></canvas></div>
     <div style="flex:1;min-width:200px">
-      <div class="mini-stats" style="grid-template-columns:repeat(3,1fr)">
-        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">__ZONE_ENDURANCE_H__</div><div class="lbl">Endurance (__ZONE_ENDURANCE_N__)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--green-light)">__ZONE_TEMPO_H__</div><div class="lbl">Tempo (__ZONE_TEMPO_N__)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--red-light)">__ZONE_THRESHOLD_H__</div><div class="lbl">Threshold/VO2 (__ZONE_THRESHOLD_N__)</div></div>
-        <div class="mini-stat"><div class="val" style="color:#94a3b8">__ZONE_FREERIDE_H__</div><div class="lbl">Free Ride (__ZONE_FREERIDE_N__)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--yellow)">__ZONE_SWEETSPOT_H__</div><div class="lbl">Sweetspot (__ZONE_SWEETSPOT_N__)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--orange)">__ZONE_OTHER_H__</div><div class="lbl">Other High Int. (__ZONE_OTHER_N__)</div></div>
+      <div class="mini-stats" style="grid-template-columns:repeat(4,1fr)">
+        <div class="mini-stat"><div class="val" style="color:#94a3b8">__ZONE_RECOVERY_H__</div><div class="lbl">Recovery<br><small>&lt;144W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">__ZONE_ENDURANCE_H__</div><div class="lbl">Endurance<br><small>145-196W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">__ZONE_TEMPO_H__</div><div class="lbl">Tempo<br><small>197-236W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--yellow)">__ZONE_THRESHOLD_H__</div><div class="lbl">Threshold<br><small>237-275W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--orange)">__ZONE_VO2_H__</div><div class="lbl">VO2max<br><small>276-314W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">__ZONE_ANAEROBIC_H__</div><div class="lbl">Anaerobic<br><small>315-393W</small></div></div>
+        <div class="mini-stat"><div class="val" style="color:#e879f9">__ZONE_NEUROMUSCULAR_H__</div><div class="lbl">Neuromuscular<br><small>394W+</small></div></div>
       </div>
-      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on __TOTAL_WORKOUTS__ completed workouts. Classified by workout title/type, not IF (IF misclassifies threshold workouts as tempo due to warmup/cooldown).</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on __TOTAL_WORKOUTS__ activities with real power data from Strava. Zones mapped from Coach Max (FTP 262W).</div>
     </div>
   </div>
 </div>
@@ -1108,10 +1109,10 @@ new Chart(document.getElementById('qualityChart'), {
 new Chart(document.getElementById('zoneDonut'), {
   type:'doughnut',
   data:{
-    labels:['Endurance','Tempo','Threshold/VO2','Free Ride','Sweetspot','Other High Int.'],
+    labels:['Recovery','Endurance','Tempo','Threshold','VO2max','Anaerobic','Neuromuscular'],
     datasets:[{
       data:__ZONE_DONUT_DATA__,
-      backgroundColor:['#60a5fa','#4ade80','#f87171','#94a3b8','#eab308','#d97706'],
+      backgroundColor:['#94a3b8','#60a5fa','#4ade80','#eab308','#f97316','#f87171','#e879f9'],
       borderColor:'#1a1d27',borderWidth:2,
     }]
   },

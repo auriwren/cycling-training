@@ -482,15 +482,16 @@ body {
     <a href="#training">Training</a>
     <a href="#race-plans">Race Plans</a>
     <a href="#coach">Coach</a>
+    <a href="#" onclick="document.getElementById('about-modal').style.display='flex';return false;">About</a>
   </div>
 </div>
 
 <!-- THIS WEEK (moved to position #2) -->
 <div id="this-week" style="margin-bottom:20px">
   <div class="card">
-    <h2><span class="icon">📋</span> This Week (Feb 9-15, 2026)</h2>
+    <h2><span class="icon">📋</span> This Week (Feb 09-15, 2026)</h2>
     <div class="today-focus">
-      <span class="focus-icon">🚴</span>
+      <span class="focus-icon">😴</span>
       <div>
         <div class="focus-text">Today's Focus: Rest Day</div>
         <div class="focus-detail">Next workout: Friday Endurance (TSS 54 planned)</div>
@@ -499,8 +500,8 @@ body {
     <div class="mini-stats">
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">138</div><div class="lbl">TSS Actual</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">396</div><div class="lbl">TSS Planned</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--green-light)">35%</div><div class="lbl">Progress</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2.7h</div><div class="lbl">Hours Done</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">34%</div><div class="lbl">Progress</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">0.0h</div><div class="lbl">Hours Done</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/5</div><div class="lbl">Completed</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">0.69</div><div class="lbl">Avg IF</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
@@ -518,7 +519,7 @@ body {
             <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
             <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
             <tr style="opacity:0.6"><td>Fri</td><td>Endurance</td><td colspan="2" style="color:var(--text-muted)">TSS 54 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
-            <tr style="opacity:0.6"><td>Sat</td><td>Long Ride &ndash; Tempo/SS</td><td colspan="2" style="color:var(--text-muted)">TSS 122 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+            <tr style="opacity:0.6"><td>Sat</td><td>Long Ride - Tempo / Sweetspot Hour</td><td colspan="2" style="color:var(--text-muted)">TSS 121 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
             <tr style="opacity:0.6"><td>Sun</td><td>Free Ride</td><td colspan="2" style="color:var(--text-muted)">TSS 65 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
           </tbody>
         </table></div>
@@ -526,7 +527,7 @@ body {
       <div>
         <h3>PMC Trend</h3>
         <div style="font-size:14px;color:var(--text-secondary);line-height:2">
-          CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">&uarr;</span><br>
+          CTL: 46.0 (+4.3 this week) <span style="color:var(--green-light)">&uarr;</span><br>
           ATL: 50.0<br>
           TSB: -4.0 &mdash; Absorbing load well<br>
           <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W</span>
@@ -567,14 +568,14 @@ body {
     <div style="width:240px;height:240px;flex-shrink:0"><canvas id="zoneDonut"></canvas></div>
     <div style="flex:1;min-width:200px">
       <div class="mini-stats" style="grid-template-columns:repeat(3,1fr)">
-        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">151.8h</div><div class="lbl">Endurance (87)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--green-light)">77.4h</div><div class="lbl">Tempo (48)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--red-light)">66.2h</div><div class="lbl">Threshold/VO2 (42)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">155.5h</div><div class="lbl">Endurance (89)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">48.3h</div><div class="lbl">Tempo (33)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">83.8h</div><div class="lbl">Threshold/VO2 (53)</div></div>
         <div class="mini-stat"><div class="val" style="color:#94a3b8">10.1h</div><div class="lbl">Free Ride (7)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--yellow)">7.6h</div><div class="lbl">Sweetspot (3)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--orange)">6.6h</div><div class="lbl">Other High Int. (2)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--yellow)">25.3h</div><div class="lbl">Sweetspot (10)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--orange)">0.0h</div><div class="lbl">Other High Int. (0)</div></div>
       </div>
-      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on 189 completed workouts. Classified by workout title/type, not IF (IF misclassifies threshold workouts as tempo due to warmup/cooldown).</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on 192 completed workouts. Classified by workout title/type, not IF (IF misclassifies threshold workouts as tempo due to warmup/cooldown).</div>
     </div>
   </div>
 </div>
@@ -602,9 +603,9 @@ body {
   </div>
   <div class="mini-stats" style="margin-top:12px">
     <div class="mini-stat"><div class="val" style="color:var(--yellow)">60%</div><div class="lbl">7-Day Avg Recovery</div></div>
-    <div class="mini-stat"><div class="val" style="color:var(--blue-light)">34.9ms</div><div class="lbl">7-Day Avg HRV</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--blue-light)">35.0ms</div><div class="lbl">7-Day Avg HRV</div></div>
     <div class="mini-stat"><div class="val" style="color:var(--blue-light)">6.9hrs</div><div class="lbl">7-Day Avg Sleep</div></div>
-    <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">-10%</div><div class="lbl">Recovery 30d Change</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">-5%</div><div class="lbl">Recovery 30d Change</div></div>
   </div>
 </div>
 
@@ -650,7 +651,7 @@ body {
     <div class="ftp-timeline">
       <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">263W</div><div class="ftp-date">Now (Feb 12)</div></div>
       <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">260-270W</div><div class="ftp-date">Next Test (Feb 26)</div></div>
-      <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">270-280W</div><div class="ftp-date">Vatternrundan (Jun 13)</div></div>
+      <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">277-287W</div><div class="ftp-date">Vatternrundan (Jun 13)</div></div>
       <div class="ftp-marker"><div class="dot" style="background:var(--green-light)"></div><div class="ftp-val" style="color:var(--green-light)">300W</div><div class="ftp-date">Target (Dec 31)</div></div>
     </div>
     <div class="mini-stats" style="margin-top:20px">
@@ -662,7 +663,7 @@ body {
 
     <div class="insight-card" style="margin:16px 0;border-color:var(--yellow);background:rgba(234,179,8,0.06)">
       <div class="type" style="color:var(--yellow)">Base Phase Reality Check</div>
-      NP trend is flat over the last 3 months (212-215W). This is expected and normal during base phase: high volume, lower intensity. CTL is climbing (46.0, up from low 20s), which means aerobic fitness is building even though peak power numbers haven't moved yet. The build phase (Apr-May) is where threshold work drives FTP gains. Peak summer NP hit 243W in June 2025 with a lower CTL. With a stronger base this year, similar or higher peaks are achievable.
+      NP trend is flat over the last 3 months (212-215W). This is expected and normal during base phase: high volume, lower intensity. CTL is climbing (46.0, up from low 20s), which means aerobic fitness is building even though peak power numbers haven't moved yet. The build phase (Apr-May) is where threshold work drives FTP gains. Peak summer NP hit 243W in Jun '25 with a lower CTL. With a stronger base this year, similar or higher peaks are achievable.
     </div>
 
     <h3>Monthly Max NP Trend (High-IF Workouts)</h3>
@@ -682,7 +683,7 @@ body {
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     <div class="insight-card">
       <div class="type">🟢 Recovery Correlation (High Confidence)</div>
-      Recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
+      Your data shows recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
     </div>
     <div class="insight-card" style="border-color:var(--blue-light);background:rgba(59,130,246,0.06)">
       <div class="type" style="color:var(--blue-light)">🟡 HRV Threshold (Medium)</div>
@@ -694,11 +695,11 @@ body {
     </div>
     <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
       <div class="type" style="color:var(--green)">🟢 Consistency (High Confidence)</div>
-      Workout completion rate: 75.1% (163/217 planned workouts). Recent 4-week streak at 100% completion.
+      Workout completion rate: 74.1% (163/220 planned workouts).
     </div>
     <div class="insight-card" style="border-color:var(--blue-light);background:rgba(59,130,246,0.06);grid-column:1/-1">
       <div class="type" style="color:var(--blue-light)">🟡 FTP Outlook (Medium Confidence)</div>
-      NP trend flat at 212-215W over last 3 months (base phase). Peak NP was 243W in June 2025. FTP gains expected during build phase (Apr-May). Next test (~Feb 26) prediction: 260-270W. 300W target requires strong summer/fall block.
+      NP trend flat at 212-215W over last 3 months (base phase). Peak NP was 243W in Jun '25. FTP gains expected during build phase (Apr-May). Next test (~Feb 26) prediction: 260-270W. 300W target requires strong summer/fall block.
     </div>
   </div>
 </div>
@@ -721,9 +722,9 @@ body {
       <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Segment</th><th>Distance</th><th>Power @ 277W FTP</th></tr></thead>
         <tbody>
-          <tr><td>First 100 km</td><td>0-62 mi</td><td>155-170W (56-61%)</td></tr>
-          <tr><td>Km 100-230</td><td>62-143 mi</td><td>170-180W (61-65%)</td></tr>
-          <tr><td>Km 230-315</td><td>143-196 mi</td><td>180-195W (65-70%)</td></tr>
+          <tr><td>First 100 km</td><td>0-62 mi</td><td>155-169W (56-61%)</td></tr>
+          <tr><td>Km 100-230</td><td>62-143 mi</td><td>169-180W (61-65%)</td></tr>
+          <tr><td>Km 230-315</td><td>143-196 mi</td><td>180-194W (65-70%)</td></tr>
         </tbody>
       </table></div>
       <div class="mini-stats" style="margin-top:12px">
@@ -908,11 +909,11 @@ body {
 <div id="coach" class="card" style="margin-bottom:20px">
   <h2><span class="icon">🎯</span> Coaching Assessment</h2>
   <div class="coach-text">
-    <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has doubled from the low 20s in late November to 46.0 today. Average weekly TSS over the last 12 weeks is 289, with the last four weeks averaging 407. Four consecutive weeks above 350 TSS, 100% adherence since mid-January. The flu week (Jan 5-11, TSS 61) was the only dip, and you bounced back immediately. You are ahead of where you were at this point in 2025, with higher volume, better consistency, and stronger weekly loads.</p>
+    <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has grown from 2 to 46.0 today over 52 weeks of training. Average weekly TSS over the last 12 weeks is 289, with the last four weeks averaging 356. completion rate of 74%. You are building consistently with strong weekly loads.</p>
 
-    <p><strong>What the Data Says About You:</strong> Three things stand out. <strong>Consistency</strong>: 75.1% overall completion rate, 100% recently. <strong>Mental toughness</strong>: workout quality on red recovery days (87.3) is virtually identical to green days (88.9). Recovery score correlates at r=0.11 with quality; statistically zero. You execute regardless of how you feel, and the data confirms this works for you. <strong>Quality</strong>: average score 88.5, with your most recent Sweetspot Surges hitting 89.2 on a yellow recovery day.</p>
+    <p><strong>What the Data Says About You:</strong> Three things stand out. <strong>Consistency</strong>: 74.1% overall completion rate. <strong>Mental toughness</strong>: workout quality on red recovery days (87.3) is virtually identical to green days (88.9). Recovery score correlates at r=0.11 with quality; statistically zero. You execute regardless of how you feel, and the data confirms this works for you. <strong>Quality</strong>: average score 88.3, with your most recent Sweetspot Surges hitting 89.2 on Feb 11.</p>
 
-    <p><strong>Areas to Watch:</strong> Recovery trending down 10 points over the last month (70% to 60%). Sleep averaging 6.8 hours; target 7.5+ for a 48-year-old in a loading phase. HRV at 34.9ms is stable but not climbing, which would be the ideal signal. None are red flags, but monitor closely as build phase intensity increases.</p>
+    <p><strong>Areas to Watch:</strong> Recovery trending -5% over the last month. Sleep averaging 6.7 hours; target 7.5+ for a 48-year-old in a loading phase. HRV at 35.0ms is stable but not climbing, which would be the ideal signal. None are red flags, but monitor closely as build phase intensity increases.</p>
 
     <p><strong>Race Readiness:</strong> At 121 days out, you are well-positioned. CTL 46.0 gives a solid platform; we want 55-65 with TSB +15 to +25 on race day. The taper model projects CTL ~61, TSB ~+23. The 2026 pacing strategy (IF 0.64, NP 175-180W) is significantly more disciplined than 2025's aggressive IF 0.82, while the addition of drafting with a riding partner saves 20-30% energy. Your 2025 solo effort at that intensity, finishing strong with feeling of 1/great, confirms the endurance capacity is there. This year you are riding smarter, not just harder.</p>
 
@@ -933,91 +934,83 @@ body {
 
 </div>
 
+<!-- About Modal -->
+<div id="about-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:32px;position:relative">
+    <button onclick="document.getElementById('about-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:4px 8px">&times;</button>
+    <h2 style="margin:0 0 8px;color:var(--text-primary);font-size:22px">About This Dashboard</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin:0 0 20px">Cycling Training Intelligence System v1.0</p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">What It Is</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      A fully automated training analytics dashboard built for serious endurance cycling. It consolidates data from multiple sources into a single view, runs performance modeling, and generates a coaching assessment grounded in real numbers. The dashboard regenerates daily from live data with no manual input.
+    </p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Data Sources</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">TrainingPeaks</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Planned and completed workouts, TSS, IF, NP, duration. Coach-prescribed training plans. Power zones. Synced daily.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Whoop</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Recovery scores, HRV, resting heart rate, sleep duration and quality. Used for recovery-performance correlation analysis.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Strava</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Activity power zone distributions (time-in-zone from actual ride data), club events, social rides. Real power file analysis.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Open-Meteo</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Weather forecasts for ride planning and race-day conditions. Kit recommendations based on temperature and wind.</div>
+      </div>
+    </div>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Architecture</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      Built in Python. All data is stored in PostgreSQL with dedicated tables for workouts, recovery, training load (PMC), FTP history, power zones, and generated insights. A template engine fills 78+ dynamic placeholders to produce this static HTML dashboard with Chart.js visualizations. The system runs as a CLI tool (<code style="color:var(--blue-light);font-size:13px">cycling-training</code>) with subcommands for syncing, analysis, and generation.
+    </p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Analytics Engine</h3>
+    <ul style="color:var(--text-secondary);font-size:13px;line-height:2;padding-left:20px">
+      <li><strong>PMC Modeling:</strong> Chronic Training Load (CTL), Acute Training Load (ATL), and Training Stress Balance (TSB) calculated daily with exponential weighted averages</li>
+      <li><strong>FTP Projection:</strong> Based on actual normalized power trends from high-intensity workouts, not linear extrapolation</li>
+      <li><strong>Recovery-Performance Correlation:</strong> Statistical analysis across 178+ overlapping Whoop/TP days measuring how recovery metrics affect workout execution</li>
+      <li><strong>Workout Quality Scoring:</strong> Composite metric from TSS adherence and IF adherence vs. planned targets</li>
+      <li><strong>Race Modeling:</strong> Pacing, taper timing, and race-day CTL/TSB projections based on historical patterns</li>
+      <li><strong>Coaching Assessment:</strong> AI-generated narrative channeling periodization principles, refreshed daily with current data</li>
+    </ul>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Coaching Persona</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      The coaching assessment is written by an AI system prompt modeled on the methodologies of Hunter Allen, Joe Friel, and Andrew Coggan, with a focus on data-driven decision making for endurance athletes. Real coaching is provided by Max Blinderman via TrainingPeaks. The AI assessment synthesizes training data into actionable narrative; it supplements but does not replace the human coach.
+    </p>
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12px;text-align:center">
+      Built by Auri Wren &middot; Powered by PostgreSQL, Chart.js, and Python &middot; Source: github.com/auriwren/cycling-training (private)
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════
 const weeklyTSS = [
-  {week:'Feb 10',tss:118.8,flu:false},{week:'Feb 17',tss:77.7,flu:false},{week:'Feb 24',tss:282.9,flu:false},
-  {week:'Mar 3',tss:168.4,flu:false},{week:'Mar 10',tss:451.8,flu:false},{week:'Mar 17',tss:412.3,flu:false},
-  {week:'Mar 24',tss:393.1,flu:false},{week:'Mar 31',tss:283.2,flu:false},{week:'Apr 7',tss:589.4,flu:false},
-  {week:'Apr 14',tss:536.7,flu:false},{week:'Apr 21',tss:143.5,flu:false},{week:'Apr 28',tss:580.2,flu:false},
-  {week:'May 5',tss:274.1,flu:false},{week:'May 12',tss:784.0,flu:false},{week:'May 19',tss:161.0,flu:false},
-  {week:'May 26',tss:596.0,flu:false},{week:'Jun 2',tss:578.3,flu:false},{week:'Jun 9',tss:820.5,flu:false},
-  {week:'Jun 16',tss:0,flu:false},{week:'Jun 23',tss:593.1,flu:false},{week:'Jun 30',tss:243.9,flu:false},
-  {week:'Jul 7',tss:514.7,flu:false},{week:'Jul 14',tss:685.3,flu:false},{week:'Jul 21',tss:695.4,flu:false},
-  {week:'Jul 28',tss:562.1,flu:false},{week:'Aug 4',tss:444.2,flu:false},{week:'Aug 11',tss:343.4,flu:false},
-  {week:'Aug 18',tss:698.2,flu:false},{week:'Aug 25',tss:122.8,flu:false},{week:'Sep 1',tss:30.0,flu:false},
-  {week:'Sep 8',tss:582.2,flu:false},{week:'Sep 15',tss:450.3,flu:false},{week:'Sep 22',tss:457.2,flu:false},
-  {week:'Sep 29',tss:423.1,flu:false},{week:'Oct 6',tss:0,flu:false},{week:'Oct 13',tss:112.1,flu:false},
-  {week:'Oct 20',tss:255.5,flu:false},{week:'Oct 27',tss:268.1,flu:false},{week:'Nov 3',tss:232.6,flu:false},
-  {week:'Nov 10',tss:69.6,flu:false},{week:'Nov 17',tss:75.8,flu:false},{week:'Nov 24',tss:306.7,flu:false},
-  {week:'Dec 1',tss:198.9,flu:false},{week:'Dec 8',tss:377.4,flu:false},{week:'Dec 15',tss:341.7,flu:false},
-  {week:'Dec 22',tss:277.6,flu:false},{week:'Dec 29',tss:347.1,flu:false},
-  {week:'Jan 5',tss:60.7,flu:true},{week:'Jan 12',tss:353.1,flu:false},{week:'Jan 19',tss:464.9,flu:false},
-  {week:'Jan 26',tss:372.0,flu:false},{week:'Feb 2',tss:448.5,flu:false},{week:'Feb 9',tss:138.0,flu:false}
+  {week:'Feb 10',tss:118.8,flu:false},{week:'Feb 17',tss:77.7,flu:false},{week:'Feb 24',tss:282.9,flu:false},{week:'Mar 03',tss:168.4,flu:false},{week:'Mar 10',tss:451.8,flu:false},{week:'Mar 17',tss:412.3,flu:false},{week:'Mar 24',tss:393.1,flu:false},{week:'Mar 31',tss:283.2,flu:false},{week:'Apr 07',tss:589.4,flu:false},{week:'Apr 14',tss:536.7,flu:false},{week:'Apr 21',tss:143.5,flu:false},{week:'Apr 28',tss:580.2,flu:false},{week:'May 05',tss:274.1,flu:false},{week:'May 12',tss:784.0,flu:false},{week:'May 19',tss:161.0,flu:false},{week:'May 26',tss:596.0,flu:false},{week:'Jun 02',tss:578.3,flu:false},{week:'Jun 09',tss:820.5,flu:false},{week:'Jun 16',tss:0.0,flu:false},{week:'Jun 23',tss:593.1,flu:false},{week:'Jun 30',tss:243.9,flu:false},{week:'Jul 07',tss:514.7,flu:false},{week:'Jul 14',tss:685.3,flu:false},{week:'Jul 21',tss:695.4,flu:false},{week:'Jul 28',tss:562.1,flu:false},{week:'Aug 04',tss:444.2,flu:false},{week:'Aug 11',tss:343.4,flu:false},{week:'Aug 18',tss:698.2,flu:false},{week:'Aug 25',tss:122.8,flu:false},{week:'Sep 01',tss:30.0,flu:false},{week:'Sep 08',tss:582.2,flu:false},{week:'Sep 15',tss:450.3,flu:false},{week:'Sep 22',tss:457.2,flu:false},{week:'Sep 29',tss:423.1,flu:false},{week:'Oct 06',tss:0.0,flu:false},{week:'Oct 13',tss:112.1,flu:false},{week:'Oct 20',tss:255.5,flu:false},{week:'Oct 27',tss:268.1,flu:false},{week:'Nov 03',tss:232.6,flu:false},{week:'Nov 10',tss:69.6,flu:false},{week:'Nov 17',tss:75.8,flu:false},{week:'Nov 24',tss:306.7,flu:false},{week:'Dec 01',tss:198.9,flu:false},{week:'Dec 08',tss:377.4,flu:false},{week:'Dec 15',tss:341.7,flu:false},{week:'Dec 22',tss:277.6,flu:false},{week:'Dec 29',tss:347.1,flu:false},{week:'Jan 05',tss:60.7,flu:true},{week:'Jan 12',tss:353.1,flu:false},{week:'Jan 19',tss:464.9,flu:false},{week:'Jan 26',tss:372.0,flu:false},{week:'Feb 02',tss:448.5,flu:false},{week:'Feb 09',tss:138.0,flu:false}
 ];
 
 const pmcData = [
-  {d:'Nov 22',ctl:1.8,atl:10.8,tsb:-9.0},{d:'Nov 29',ctl:6.2,atl:24.9,tsb:-18.7},
-  {d:'Dec 1',ctl:8.2,atl:30.2,tsb:-22.0},{d:'Dec 8',ctl:11.1,atl:24.3,tsb:-13.1},
-  {d:'Dec 13',ctl:18.5,atl:54.6,tsb:-36.1},{d:'Dec 15',ctl:17.7,atl:40.1,tsb:-22.5},
-  {d:'Dec 20',ctl:23.5,atl:57.2,tsb:-33.8},{d:'Dec 23',ctl:25.7,atl:58.4,tsb:-32.7},
-  {d:'Dec 27',ctl:26.0,atl:47.5,tsb:-21.4},{d:'Dec 31',ctl:25.9,atl:39.4,tsb:-13.5},
-  {d:'Jan 4',ctl:29.4,atl:53.5,tsb:-24.0},{d:'Jan 5',ctl:29.1,atl:47.9,tsb:-18.9},
-  {d:'Jan 10',ctl:25.8,atl:22.2,tsb:3.6},{d:'Jan 12',ctl:26.9,atl:29.8,tsb:-2.8},
-  {d:'Jan 16',ctl:26.8,atl:28.9,tsb:-2.0},{d:'Jan 19',ctl:29.5,atl:41.0,tsb:-11.5},
-  {d:'Jan 24',ctl:34.2,atl:58.6,tsb:-24.4},{d:'Jan 26',ctl:35.2,atl:56.5,tsb:-21.3},
-  {d:'Jan 31',ctl:39.7,atl:67.8,tsb:-28.1},{d:'Feb 2',ctl:39.5,atl:59.7,tsb:-20.2},
-  {d:'Feb 4',ctl:41.1,atl:64.3,tsb:-23.1},{d:'Feb 7',ctl:42.4,atl:64.6,tsb:-22.2},
-  {d:'Feb 9',ctl:41.7,atl:54.0,tsb:-12.3},{d:'Feb 11',ctl:43.0,atl:58.6,tsb:-15.6},
-  {d:'Feb 12',ctl:46.0,atl:50.0,tsb:-4.0}
+  {d:'Nov 22',ctl:1.8,atl:10.8,tsb:-9.0},{d:'Nov 23',ctl:1.8,atl:9.3,tsb:-7.5},{d:'Nov 24',ctl:3.1,atl:16.0,tsb:-12.9},{d:'Nov 25',ctl:4.6,atl:23.4,tsb:-18.8},{d:'Nov 26',ctl:4.5,atl:20.0,tsb:-15.5},{d:'Nov 27',ctl:4.4,atl:17.2,tsb:-12.8},{d:'Nov 28',ctl:4.3,atl:14.7,tsb:-10.4},{d:'Nov 29',ctl:6.2,atl:24.9,tsb:-18.7},{d:'Nov 30',ctl:8.4,atl:35.2,tsb:-26.8},{d:'Dec 01',ctl:8.2,atl:30.1,tsb:-22.0},{d:'Dec 02',ctl:9.4,atl:34.3,tsb:-24.9},{d:'Dec 03',ctl:11.1,atl:40.7,tsb:-29.6},{d:'Dec 04',ctl:10.8,atl:34.9,tsb:-24.1},{d:'Dec 05',ctl:12.0,atl:38.6,tsb:-26.6},{d:'Dec 06',ctl:11.7,atl:33.0,tsb:-21.4},{d:'Dec 07',ctl:11.4,atl:28.3,tsb:-16.9},{d:'Dec 08',ctl:11.1,atl:24.3,tsb:-13.1},{d:'Dec 09',ctl:12.3,atl:29.2,tsb:-16.9},{d:'Dec 10',ctl:14.3,atl:39.2,tsb:-24.9},{d:'Dec 11',ctl:14.0,atl:33.6,tsb:-19.6},{d:'Dec 12',ctl:15.3,atl:38.8,tsb:-23.5},{d:'Dec 13',ctl:18.5,atl:54.6,tsb:-36.1},{d:'Dec 14',ctl:18.1,atl:46.8,tsb:-28.7},{d:'Dec 15',ctl:17.7,atl:40.1,tsb:-22.5},{d:'Dec 16',ctl:18.6,atl:42.3,tsb:-23.7},{d:'Dec 17',ctl:20.4,atl:50.2,tsb:-29.7},{d:'Dec 18',ctl:19.9,atl:43.0,tsb:-23.1},{d:'Dec 19',ctl:21.0,atl:46.2,tsb:-25.2},{d:'Dec 20',ctl:23.5,atl:57.2,tsb:-33.8},{d:'Dec 21',ctl:22.9,atl:49.1,tsb:-26.2},{d:'Dec 22',ctl:23.9,atl:51.5,tsb:-27.5},{d:'Dec 23',ctl:25.7,atl:58.4,tsb:-32.7},{d:'Dec 24',ctl:25.1,atl:50.1,tsb:-24.9},{d:'Dec 25',ctl:24.5,atl:42.9,tsb:-18.4},{d:'Dec 26',ctl:23.9,atl:36.8,tsb:-12.8},{d:'Dec 27',ctl:26.0,atl:47.5,tsb:-21.4},{d:'Dec 28',ctl:25.4,atl:40.7,tsb:-15.3},{d:'Dec 29',ctl:24.8,atl:34.9,tsb:-10.1},{d:'Dec 30',ctl:24.2,atl:29.9,tsb:-5.7},{d:'Dec 31',ctl:25.9,atl:39.4,tsb:-13.4},{d:'Jan 01',ctl:25.3,atl:33.8,tsb:-8.4},{d:'Jan 02',ctl:26.1,atl:37.5,tsb:-11.3},{d:'Jan 03',ctl:27.1,atl:41.7,tsb:-14.6},{d:'Jan 04',ctl:29.4,atl:53.5,tsb:-24.0},{d:'Jan 05',ctl:29.1,atl:47.9,tsb:-18.9},{d:'Jan 06',ctl:28.4,atl:41.1,tsb:-12.7},{d:'Jan 07',ctl:27.7,atl:35.2,tsb:-7.5},{d:'Jan 08',ctl:27.1,atl:30.2,tsb:-3.1},{d:'Jan 09',ctl:26.4,atl:25.9,tsb:0.5},{d:'Jan 10',ctl:25.8,atl:22.2,tsb:3.6},{d:'Jan 11',ctl:26.2,atl:25.6,tsb:0.7},{d:'Jan 12',ctl:26.9,atl:29.8,tsb:-2.8},{d:'Jan 13',ctl:26.3,atl:25.5,tsb:0.8},{d:'Jan 14',ctl:26.8,atl:28.6,tsb:-1.9},{d:'Jan 15',ctl:26.2,atl:24.6,tsb:1.6},{d:'Jan 16',ctl:26.8,atl:28.9,tsb:-2.0},{d:'Jan 17',ctl:27.9,atl:34.6,tsb:-6.8},{d:'Jan 18',ctl:30.2,atl:47.8,tsb:-17.6},{d:'Jan 19',ctl:29.5,atl:41.0,tsb:-11.5},{d:'Jan 20',ctl:30.5,atl:45.7,tsb:-15.1},{d:'Jan 21',ctl:32.0,atl:52.3,tsb:-20.3},{d:'Jan 22',ctl:31.2,atl:44.9,tsb:-13.6},{d:'Jan 23',ctl:32.0,atl:47.6,tsb:-15.6},{d:'Jan 24',ctl:34.2,atl:58.6,tsb:-24.4},{d:'Jan 25',ctl:36.0,atl:65.9,tsb:-29.9},{d:'Jan 26',ctl:35.2,atl:56.5,tsb:-21.3},{d:'Jan 27',ctl:36.0,atl:58.4,tsb:-22.4},{d:'Jan 28',ctl:37.6,atl:64.8,tsb:-27.2},{d:'Jan 29',ctl:36.7,atl:55.5,tsb:-18.8},{d:'Jan 30',ctl:37.6,atl:58.3,tsb:-20.6},{d:'Jan 31',ctl:39.7,atl:67.8,tsb:-28.1},{d:'Feb 01',ctl:38.7,atl:58.1,tsb:-19.3},{d:'Feb 02',ctl:39.5,atl:59.7,tsb:-20.2},{d:'Feb 03',ctl:39.6,atl:57.4,tsb:-17.8},{d:'Feb 04',ctl:41.1,atl:64.3,tsb:-23.1},{d:'Feb 05',ctl:40.2,atl:55.1,tsb:-14.9},{d:'Feb 06',ctl:40.5,atl:55.0,tsb:-14.5},{d:'Feb 07',ctl:42.4,atl:64.6,tsb:-22.2},{d:'Feb 08',ctl:42.7,atl:63.0,tsb:-20.3},{d:'Feb 09',ctl:41.7,atl:54.0,tsb:-12.3},{d:'Feb 10',ctl:41.6,atl:52.1,tsb:-10.4},{d:'Feb 11',ctl:43.0,atl:58.5,tsb:-15.6},{d:'Feb 12',ctl:46.0,atl:50.0,tsb:-4.0}
 ];
 
-const recovery30 = [
-  {d:'Jan 13',r:73},{d:'Jan 14',r:86},{d:'Jan 15',r:64},{d:'Jan 16',r:82},{d:'Jan 17',r:53},
-  {d:'Jan 18',r:65},{d:'Jan 19',r:27},{d:'Jan 20',r:92},{d:'Jan 21',r:63},{d:'Jan 22',r:44},
-  {d:'Jan 23',r:73},{d:'Jan 24',r:85},{d:'Jan 25',r:85},{d:'Jan 26',r:47},{d:'Jan 27',r:89},
-  {d:'Jan 28',r:80},{d:'Jan 29',r:40},{d:'Jan 30',r:70},{d:'Jan 31',r:52},{d:'Feb 1',r:38},
-  {d:'Feb 2',r:74},{d:'Feb 3',r:78},{d:'Feb 4',r:80},{d:'Feb 5',r:61},{d:'Feb 6',r:47},
-  {d:'Feb 7',r:63},{d:'Feb 8',r:61},{d:'Feb 9',r:61},{d:'Feb 10',r:86},{d:'Feb 11',r:56},
-  {d:'Feb 12',r:47}
-];
+const recovery30 = [{d:'Jan 12',r:37},{d:'Jan 13',r:73},{d:'Jan 14',r:86},{d:'Jan 15',r:64},{d:'Jan 16',r:82},{d:'Jan 17',r:53},{d:'Jan 18',r:65},{d:'Jan 19',r:27},{d:'Jan 20',r:92},{d:'Jan 21',r:63},{d:'Jan 22',r:44},{d:'Jan 23',r:73},{d:'Jan 24',r:85},{d:'Jan 25',r:85},{d:'Jan 26',r:47},{d:'Jan 27',r:89},{d:'Jan 28',r:80},{d:'Jan 29',r:40},{d:'Jan 30',r:70},{d:'Jan 31',r:52},{d:'Feb 01',r:38},{d:'Feb 02',r:74},{d:'Feb 03',r:78},{d:'Feb 04',r:80},{d:'Feb 05',r:61},{d:'Feb 06',r:47},{d:'Feb 07',r:63},{d:'Feb 08',r:61},{d:'Feb 09',r:61},{d:'Feb 10',r:86},{d:'Feb 11',r:56},{d:'Feb 12',r:47}];
 
-const hrv30 = [
-  {d:'Jan 13',h:33},{d:'Jan 14',h:38},{d:'Jan 15',h:32},{d:'Jan 16',h:38},{d:'Jan 17',h:28},
-  {d:'Jan 18',h:32},{d:'Jan 19',h:26},{d:'Jan 20',h:40},{d:'Jan 21',h:32},{d:'Jan 22',h:27},
-  {d:'Jan 23',h:33},{d:'Jan 24',h:36},{d:'Jan 25',h:38},{d:'Jan 26',h:28},{d:'Jan 27',h:45},
-  {d:'Jan 28',h:66},{d:'Jan 29',h:29},{d:'Jan 30',h:38},{d:'Jan 31',h:31},{d:'Feb 1',h:25},
-  {d:'Feb 2',h:37},{d:'Feb 3',h:38},{d:'Feb 4',h:40},{d:'Feb 5',h:36},{d:'Feb 6',h:31},
-  {d:'Feb 7',h:36},{d:'Feb 8',h:36},{d:'Feb 9',h:35},{d:'Feb 10',h:40},{d:'Feb 11',h:33},
-  {d:'Feb 12',h:33}
-];
+const hrv30 = [{d:'Jan 12',h:23},{d:'Jan 13',h:33},{d:'Jan 14',h:38},{d:'Jan 15',h:32},{d:'Jan 16',h:38},{d:'Jan 17',h:28},{d:'Jan 18',h:32},{d:'Jan 19',h:25},{d:'Jan 20',h:39},{d:'Jan 21',h:31},{d:'Jan 22',h:26},{d:'Jan 23',h:33},{d:'Jan 24',h:36},{d:'Jan 25',h:38},{d:'Jan 26',h:28},{d:'Jan 27',h:44},{d:'Jan 28',h:65},{d:'Jan 29',h:28},{d:'Jan 30',h:37},{d:'Jan 31',h:30},{d:'Feb 01',h:25},{d:'Feb 02',h:37},{d:'Feb 03',h:38},{d:'Feb 04',h:40},{d:'Feb 05',h:36},{d:'Feb 06',h:30},{d:'Feb 07',h:35},{d:'Feb 08',h:35},{d:'Feb 09',h:34},{d:'Feb 10',h:40},{d:'Feb 11',h:33},{d:'Feb 12',h:33}];
 
-const sleep30 = [
-  {d:'Jan 13',s:6.2},{d:'Jan 14',s:6.7},{d:'Jan 15',s:6.9},{d:'Jan 16',s:5.4},{d:'Jan 17',s:7.9},
-  {d:'Jan 18',s:6.6},{d:'Jan 19',s:7.1},{d:'Jan 20',s:7.0},{d:'Jan 21',s:7.5},{d:'Jan 22',s:8.0},
-  {d:'Jan 23',s:7.9},{d:'Jan 24',s:8.9},{d:'Jan 25',s:6.2},{d:'Jan 26',s:7.1},{d:'Jan 27',s:6.3},
-  {d:'Jan 28',s:6.0},{d:'Jan 29',s:6.2},{d:'Jan 30',s:7.0},{d:'Jan 31',s:8.1},{d:'Feb 1',s:9.5},
-  {d:'Feb 2',s:7.4},{d:'Feb 3',s:6.9},{d:'Feb 4',s:8.3},{d:'Feb 5',s:6.6},{d:'Feb 6',s:7.1},
-  {d:'Feb 7',s:7.4},{d:'Feb 8',s:6.7},{d:'Feb 9',s:7.0},{d:'Feb 10',s:6.5},{d:'Feb 11',s:7.4},
-  {d:'Feb 12',s:6.3}
-];
+const sleep30 = [{d:'Jan 12',s:6.6},{d:'Jan 13',s:6.2},{d:'Jan 14',s:6.7},{d:'Jan 15',s:6.9},{d:'Jan 16',s:5.4},{d:'Jan 17',s:7.9},{d:'Jan 18',s:6.6},{d:'Jan 19',s:7.1},{d:'Jan 20',s:7.0},{d:'Jan 21',s:7.5},{d:'Jan 22',s:8.0},{d:'Jan 23',s:7.8},{d:'Jan 24',s:8.9},{d:'Jan 25',s:6.2},{d:'Jan 26',s:7.1},{d:'Jan 27',s:6.3},{d:'Jan 28',s:6.0},{d:'Jan 29',s:6.2},{d:'Jan 30',s:7.0},{d:'Jan 31',s:8.1},{d:'Feb 01',s:9.5},{d:'Feb 02',s:7.4},{d:'Feb 03',s:6.9},{d:'Feb 04',s:8.3},{d:'Feb 05',s:6.6},{d:'Feb 06',s:7.1},{d:'Feb 07',s:7.3},{d:'Feb 08',s:6.7},{d:'Feb 09',s:7.0},{d:'Feb 10',s:6.5},{d:'Feb 11',s:7.4},{d:'Feb 12',s:6.3}];
 
-const qualityData = [
-  {d:'Oct 22',q:91.5},{d:'Oct 24',q:86.9},{d:'Oct 26',q:91.7},{d:'Oct 29',q:78.4},{d:'Oct 31',q:87.4},
-  {d:'Nov 1',q:94.4},{d:'Nov 3',q:92.0},{d:'Nov 4',q:91.3},{d:'Nov 6',q:87.0},{d:'Nov 7',q:85.8},
-  {d:'Nov 24',q:93.2},{d:'Nov 25',q:95.3},{d:'Nov 29',q:79.0},{d:'Nov 30',q:92.2},
-  {d:'Dec 2',q:93.6},{d:'Dec 3',q:91.8},{d:'Dec 5',q:90.8},{d:'Dec 9',q:94.1},{d:'Dec 10',q:88.9},
-  {d:'Dec 12',q:91.9},{d:'Dec 13',q:93.2},{d:'Dec 16',q:90.5},{d:'Dec 17',q:86.9},{d:'Dec 19',q:89.9},
-  {d:'Dec 20',q:92.3},{d:'Dec 22',q:86.5},{d:'Dec 23',q:88.6},{d:'Dec 27',q:86.1},{d:'Dec 31',q:86.4},
-  {d:'Jan 2',q:94.1},{d:'Jan 3',q:87.9},{d:'Jan 4',q:92.2},{d:'Jan 11',q:94.6},{d:'Jan 12',q:92.2},
-  {d:'Jan 14',q:94.1},{d:'Jan 16',q:91.7},{d:'Jan 17',q:94.1},{d:'Jan 18',q:93.1},{d:'Jan 20',q:95.4},
-  {d:'Jan 21',q:92.2},{d:'Jan 23',q:91.5},{d:'Jan 24',q:92.8},{d:'Jan 25',q:87.8},{d:'Jan 27',q:93.4},
-  {d:'Jan 28',q:90.3},{d:'Jan 30',q:92.5},{d:'Jan 31',q:90.6},{d:'Feb 2',q:94.1},{d:'Feb 3',q:78.3},
-  {d:'Feb 4',q:88.5},{d:'Feb 6',q:91.3},{d:'Feb 7',q:91.7},{d:'Feb 8',q:79.3},{d:'Feb 10',q:74.2},
-  {d:'Feb 11',q:89.2}
-];
+const qualityData = [{d:'Aug 06',q:99.4},{d:'Aug 08',q:82.3},{d:'Aug 09',q:54.7},{d:'Aug 12',q:96.2},{d:'Aug 15',q:95.7},{d:'Aug 17',q:86.7},{d:'Aug 18',q:96.6},{d:'Aug 19',q:91.7},{d:'Aug 20',q:99.5},{d:'Aug 23',q:81.9},{d:'Sep 01',q:91.7},{d:'Sep 09',q:85.8},{d:'Sep 10',q:86.1},{d:'Sep 13',q:86.3},{d:'Sep 15',q:91.7},{d:'Sep 16',q:88.0},{d:'Sep 17',q:89.9},{d:'Sep 20',q:94.7},{d:'Sep 23',q:91.0},{d:'Sep 24',q:89.6},{d:'Sep 27',q:99.7},{d:'Sep 29',q:88.3},{d:'Oct 01',q:97.6},{d:'Oct 03',q:87.1},{d:'Oct 22',q:91.5},{d:'Oct 24',q:86.9},{d:'Oct 25',q:69.0},{d:'Oct 26',q:91.7},{d:'Oct 29',q:78.4},{d:'Oct 31',q:87.4},{d:'Nov 01',q:94.4},{d:'Nov 03',q:92.0},{d:'Nov 04',q:91.3},{d:'Nov 06',q:87.0},{d:'Nov 07',q:85.8},{d:'Nov 24',q:93.2},{d:'Nov 25',q:95.3},{d:'Nov 29',q:79.0},{d:'Nov 30',q:92.2},{d:'Dec 02',q:93.6},{d:'Dec 03',q:91.8},{d:'Dec 05',q:90.8},{d:'Dec 09',q:94.1},{d:'Dec 10',q:88.9},{d:'Dec 12',q:91.9},{d:'Dec 13',q:93.2},{d:'Dec 16',q:90.5},{d:'Dec 17',q:86.9},{d:'Dec 19',q:89.9},{d:'Dec 20',q:92.3},{d:'Dec 22',q:86.5},{d:'Dec 23',q:88.6},{d:'Dec 27',q:86.1},{d:'Dec 31',q:86.4},{d:'Jan 02',q:94.1},{d:'Jan 03',q:87.9},{d:'Jan 04',q:92.2},{d:'Jan 11',q:94.6},{d:'Jan 12',q:92.2},{d:'Jan 14',q:94.1},{d:'Jan 16',q:91.7},{d:'Jan 17',q:94.1},{d:'Jan 18',q:93.1},{d:'Jan 20',q:95.4},{d:'Jan 21',q:92.2},{d:'Jan 23',q:91.5},{d:'Jan 24',q:92.8},{d:'Jan 25',q:87.8},{d:'Jan 27',q:93.4},{d:'Jan 28',q:90.3},{d:'Jan 30',q:92.5},{d:'Jan 31',q:90.6},{d:'Feb 02',q:94.1},{d:'Feb 03',q:78.3},{d:'Feb 04',q:88.5},{d:'Feb 06',q:91.3},{d:'Feb 07',q:91.7},{d:'Feb 08',q:79.2},{d:'Feb 10',q:74.2},{d:'Feb 11',q:89.2}];
 
 // ═══════════════════════════════════════
 // CHART CONFIG
@@ -1201,7 +1194,7 @@ new Chart(document.getElementById('zoneDonut'), {
   data:{
     labels:['Endurance','Tempo','Threshold/VO2','Free Ride','Sweetspot','Other High Int.'],
     datasets:[{
-      data:[9108,4644,3972,606,456,396],
+      data:[9332, 2900, 5026, 607, 1517, 0],
       backgroundColor:['#60a5fa','#4ade80','#f87171','#94a3b8','#eab308','#d97706'],
       borderColor:'#1a1d27',borderWidth:2,
     }]
@@ -1228,11 +1221,11 @@ const mobileMaxTicks = isMobile ? 6 : undefined;
 new Chart(document.getElementById('npTrendChart'), {
   type:'bar',
   data:{
-    labels:['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+    labels:["Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb"],
     datasets:[{
       label:'Max NP',
-      data:[217,220,235,216,243,224,229,238,228,227,212,215,214],
-      backgroundColor:['rgba(96,165,250,0.4)','rgba(96,165,250,0.4)','rgba(96,165,250,0.5)','rgba(96,165,250,0.4)','rgba(249,115,22,0.7)','rgba(96,165,250,0.5)','rgba(96,165,250,0.5)','rgba(96,165,250,0.5)','rgba(96,165,250,0.4)','rgba(96,165,250,0.4)','rgba(96,165,250,0.3)','rgba(96,165,250,0.3)','rgba(96,165,250,0.3)'],
+      data:[217, 220, 235, 216, 243, 224, 229, 238, 228, 227, 212, 215, 214],
+      backgroundColor:['rgba(96,165,250,0.35)','rgba(96,165,250,0.35)','rgba(96,165,250,0.5)','rgba(96,165,250,0.35)','rgba(249,115,22,0.7)','rgba(96,165,250,0.35)','rgba(96,165,250,0.35)','rgba(96,165,250,0.5)','rgba(96,165,250,0.35)','rgba(96,165,250,0.35)','rgba(96,165,250,0.35)','rgba(96,165,250,0.35)','rgba(96,165,250,0.35)'],
       borderRadius:3,
     }]
   },
@@ -1246,7 +1239,7 @@ new Chart(document.getElementById('npTrendChart'), {
 // FTP Projection Chart (data-driven)
 const ftpMonths = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Base plateau Feb-Mar, build phase gains Apr-Jun, continued gains Jul-Dec
-const ftpProjection = [263,263,265,272,278,282,286,290,293,296,300];
+const ftpProjection = [263, 263, 265, 272, 277, 285, 287, 287, 291, 295, 299];
 new Chart(document.getElementById('ftpChart'), {
   type:'line',
   data:{

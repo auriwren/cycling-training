@@ -988,6 +988,277 @@ def strava_api(endpoint, token):
     return resp.json()
 
 
+# ── Strava Power Zones ─────────────────────────────────────────────
+
+# Coach Max zones (FTP 262W)
+COACH_ZONES = [
+    ("recovery",      0,   144),
+    ("endurance",     145, 196),
+    ("tempo",         197, 236),
+    ("threshold",     237, 275),
+    ("vo2",           276, 314),
+    ("anaerobic",     315, 393),
+    ("neuromuscular", 394, 9999),
+]
+
+
+def _map_bucket_to_zones(bucket_min: int, bucket_max: int, time_sec: float) -> Dict[str, float]:
+    """Map a Strava power bucket to Coach Max zones using proportional splitting.
+    
+    bucket_max of -1 means open-ended (450+ etc).
+    """
+    result: Dict[str, float] = {}
+    if time_sec <= 0:
+        return result
+
+    # Handle the 0W/0W bucket (no power recorded)
+    if bucket_min == 0 and bucket_max == 0:
+        result["recovery"] = time_sec
+        return result
+
+    # Open-ended bucket
+    if bucket_max == -1:
+        bucket_max = max(bucket_min + 50, 1000)
+
+    bucket_width = bucket_max - bucket_min
+    if bucket_width <= 0:
+        # Single-point bucket, assign to whichever zone contains it
+        for zname, zmin, zmax in COACH_ZONES:
+            if zmin <= bucket_min <= zmax:
+                result[zname] = time_sec
+                return result
+        result["neuromuscular"] = time_sec
+        return result
+
+    for zname, zmin, zmax in COACH_ZONES:
+        # Overlap between [bucket_min, bucket_max) and [zmin, zmax]
+        overlap_min = max(bucket_min, zmin)
+        overlap_max = min(bucket_max, zmax)
+        if overlap_min <= overlap_max:
+            overlap_width = overlap_max - overlap_min
+            # For boundary: if bucket is [200,250] and zone is [197,236], overlap is [200,236] = 36W out of 50W
+            fraction = overlap_width / bucket_width
+            result[zname] = result.get(zname, 0) + time_sec * fraction
+
+    # If nothing matched (shouldn't happen), dump to recovery
+    if not result:
+        result["recovery"] = time_sec
+
+    return result
+
+
+def sync_strava_zones(days: int = 365) -> None:
+    """Sync power zone distribution from Strava activity zones API."""
+    print(f"🔄 Syncing Strava power zones (last {days} days)...")
+    env = load_env(STRAVA_ENV)
+    token = env.get("STRAVA_ACCESS_TOKEN", "")
+    if not token:
+        print("❌ No Strava access token found")
+        return
+
+    headers = {"Authorization": f"Bearer {token}"}
+    cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+
+    # Get existing activity IDs to skip
+    conn = get_db()
+    with conn.cursor() as cur:
+        cur.execute("SELECT activity_id FROM strava_power_zones")
+        existing = {r[0] for r in cur.fetchall()}
+    conn.close()
+    print(f"  Already have {len(existing)} activities in DB")
+
+    # Fetch all cycling activities
+    all_activities = []
+    page = 1
+    while True:
+        resp = requests.get(
+            "https://www.strava.com/api/v3/athlete/activities",
+            headers=headers,
+            params={"per_page": 200, "page": page, "after": cutoff},
+            timeout=15,
+        )
+        if resp.status_code == 401:
+            new_token = strava_refresh_token()
+            if new_token:
+                headers = {"Authorization": f"Bearer {new_token}"}
+                resp = requests.get(
+                    "https://www.strava.com/api/v3/athlete/activities",
+                    headers=headers,
+                    params={"per_page": 200, "page": page, "after": cutoff},
+                    timeout=15,
+                )
+            else:
+                print("❌ Auth failed")
+                return
+        if resp.status_code != 200:
+            print(f"❌ Activity list failed: {resp.status_code}")
+            return
+
+        activities = resp.json()
+        if not activities:
+            break
+
+        rides = [a for a in activities if a.get("type") in ("Ride", "VirtualRide")]
+        all_activities.extend(rides)
+        print(f"  Page {page}: {len(rides)} rides ({len(activities)} total)")
+        page += 1
+        time.sleep(1)
+
+    # Filter out already-synced
+    to_fetch = [a for a in all_activities if a["id"] not in existing]
+    print(f"  Total rides: {len(all_activities)}, new to fetch: {len(to_fetch)}")
+
+    if not to_fetch:
+        print("✅ All activities already synced")
+        return
+
+    # Fetch zones for each activity with rate limiting
+    conn = get_db()
+    synced = 0
+    errors = 0
+    request_count = 0
+
+    for i, act in enumerate(to_fetch):
+        aid = act["id"]
+        name = act.get("name", "")
+        act_date = act.get("start_date_local", "")[:10]
+
+        # Rate limit check
+        request_count += 1
+        if request_count % 80 == 0:
+            print(f"  ⏸️  Rate limit pause (80 requests)... waiting 60s")
+            time.sleep(60)
+
+        try:
+            resp = requests.get(
+                f"https://www.strava.com/api/v3/activities/{aid}/zones",
+                headers=headers,
+                timeout=15,
+            )
+
+            # Check rate limit headers
+            usage = resp.headers.get("X-RateLimit-Usage", "")
+            if usage:
+                parts = usage.split(",")
+                if len(parts) >= 1:
+                    short_usage = int(parts[0])
+                    if short_usage >= 90:
+                        print(f"  ⏸️  Approaching rate limit ({short_usage}/100), pausing 15 min...")
+                        time.sleep(900)
+
+            if resp.status_code == 401:
+                new_token = strava_refresh_token()
+                if new_token:
+                    headers = {"Authorization": f"Bearer {new_token}"}
+                    resp = requests.get(f"https://www.strava.com/api/v3/activities/{aid}/zones", headers=headers, timeout=15)
+                else:
+                    print("❌ Auth failed during zone fetch")
+                    break
+
+            if resp.status_code != 200:
+                print(f"  ⚠️  Zones failed for {aid} ({name}): HTTP {resp.status_code}")
+                errors += 1
+                time.sleep(1)
+                continue
+
+            zones_data = resp.json()
+
+            # Find power zone data
+            power_zones = None
+            for z in zones_data:
+                if z.get("type") == "power":
+                    power_zones = z.get("distribution_buckets", [])
+                    break
+
+            if not power_zones:
+                # No power data for this activity (maybe no power meter)
+                time.sleep(1)
+                continue
+
+            # Map buckets to coach zones
+            totals: Dict[str, float] = {
+                "recovery": 0, "endurance": 0, "tempo": 0, "threshold": 0,
+                "vo2": 0, "anaerobic": 0, "neuromuscular": 0,
+            }
+            for bucket in power_zones:
+                mapped = _map_bucket_to_zones(bucket["min"], bucket["max"], bucket.get("time", 0))
+                for zname, secs in mapped.items():
+                    totals[zname] = totals.get(zname, 0) + secs
+
+            total_sec = sum(totals.values())
+
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO strava_power_zones
+                            (activity_id, date, title, recovery_sec, endurance_sec, tempo_sec,
+                             threshold_sec, vo2_sec, anaerobic_sec, neuromuscular_sec, total_sec)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (activity_id) DO UPDATE SET
+                            recovery_sec = EXCLUDED.recovery_sec, endurance_sec = EXCLUDED.endurance_sec,
+                            tempo_sec = EXCLUDED.tempo_sec, threshold_sec = EXCLUDED.threshold_sec,
+                            vo2_sec = EXCLUDED.vo2_sec, anaerobic_sec = EXCLUDED.anaerobic_sec,
+                            neuromuscular_sec = EXCLUDED.neuromuscular_sec, total_sec = EXCLUDED.total_sec
+                    """, (
+                        aid, act_date, name,
+                        int(totals["recovery"]), int(totals["endurance"]), int(totals["tempo"]),
+                        int(totals["threshold"]), int(totals["vo2"]), int(totals["anaerobic"]),
+                        int(totals["neuromuscular"]), int(total_sec),
+                    ))
+
+            synced += 1
+            if synced % 10 == 0 or synced == 1:
+                print(f"  [{synced}/{len(to_fetch)}] {act_date} {name[:40]}")
+
+        except Exception as e:
+            print(f"  ❌ Error for {aid}: {e}")
+            errors += 1
+
+        time.sleep(1)  # Rate limit courtesy
+
+    conn.close()
+
+    print(f"\n✅ Strava zones: synced {synced} activities ({errors} errors)")
+
+    # Show aggregate summary
+    _show_zone_summary()
+
+
+def _show_zone_summary():
+    """Print aggregate zone distribution."""
+    conn = get_db()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                SUM(recovery_sec) as recovery,
+                SUM(endurance_sec) as endurance,
+                SUM(tempo_sec) as tempo,
+                SUM(threshold_sec) as threshold,
+                SUM(vo2_sec) as vo2,
+                SUM(anaerobic_sec) as anaerobic,
+                SUM(neuromuscular_sec) as neuromuscular,
+                SUM(total_sec) as total,
+                COUNT(*) as n
+            FROM strava_power_zones
+        """)
+        r = cur.fetchone()
+    conn.close()
+
+    if not r or not r[7]:
+        return
+
+    total = r[7]
+    names = ["Recovery", "Endurance", "Tempo", "Threshold", "VO2", "Anaerobic", "Neuromuscular"]
+    values = r[:7]
+
+    print(f"\n📊 Zone Distribution ({r[8]} activities, {total/3600:.1f} total hours):")
+    for name, val in zip(names, values):
+        pct = val / total * 100 if total > 0 else 0
+        hrs = val / 3600
+        bar = "█" * int(pct / 2)
+        print(f"  {name:<14} {hrs:>6.1f}h  {pct:>5.1f}%  {bar}")
+
+
 def strava_events() -> None:
     """Fetch and display upcoming Strava club events."""
     env = load_env(STRAVA_ENV)
@@ -2223,6 +2494,9 @@ def main() -> None:
     p_weekly = sub.add_parser("weekly-summary", help="Weekly training summary")
     p_weekly.add_argument("date", nargs="?", default=None, help="Any date in target week (YYYY-MM-DD)")
 
+    p_sz = sub.add_parser("sync-strava-zones", help="Sync power zones from Strava activities")
+    p_sz.add_argument("--days", type=int, default=365)
+
     sub.add_parser("strava-events", help="Show upcoming Strava club events")
 
     p_weather = sub.add_parser("weather", help="Weather and ride kit recommendation")
@@ -2261,6 +2535,8 @@ def main() -> None:
         ftp_project()
     elif args.command == "weekly-summary":
         weekly_summary(args.date)
+    elif args.command == "sync-strava-zones":
+        sync_strava_zones(args.days)
     elif args.command == "strava-events":
         strava_events()
     elif args.command == "weather":

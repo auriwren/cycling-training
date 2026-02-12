@@ -347,33 +347,74 @@ def generate_dashboard(upload: bool = False) -> None:
     best_sleep = f"{sum(float(r['sleep_hours'] or 0) for r in top20)/len(top20):.1f}h" if top20 else "N/A"
     best_quality = f"{sum(float(r['workout_quality']) for r in top20)/len(top20):.1f}" if top20 else "N/A"
 
-    # ── Power Zone Distribution ──
+    # ── Power Zone Distribution (from Strava real power data) ──
     cur.execute("""
-        SELECT title, tss_actual, if_actual FROM training_workouts
-        WHERE completed = true AND tss_actual > 0
+        SELECT
+            SUM(recovery_sec) as recovery,
+            SUM(endurance_sec) as endurance,
+            SUM(tempo_sec) as tempo,
+            SUM(threshold_sec) as threshold,
+            SUM(vo2_sec) as vo2,
+            SUM(anaerobic_sec) as anaerobic,
+            SUM(neuromuscular_sec) as neuromuscular,
+            SUM(total_sec) as total,
+            COUNT(*) as n
+        FROM strava_power_zones
     """)
-    all_workouts = cur.fetchall()
-    zones: Dict[str, Dict[str, float]] = {
-        "Endurance": {"hours": 0, "count": 0},
-        "Tempo": {"hours": 0, "count": 0},
-        "Threshold/VO2": {"hours": 0, "count": 0},
-        "Free Ride": {"hours": 0, "count": 0},
-        "Sweetspot": {"hours": 0, "count": 0},
-        "Other High Int.": {"hours": 0, "count": 0},
-    }
-    for w in all_workouts:
-        zone = _classify_zone(w["title"], w["if_actual"])
-        tss = float(w["tss_actual"] or 0)
-        if_val = float(w["if_actual"]) if w["if_actual"] else 0.65
-        # hours = TSS / (IF^2 * 100)
-        hours = tss / (if_val ** 2 * 100) if if_val > 0 else tss / 42.25
-        zones[zone]["hours"] += hours
-        zones[zone]["count"] += 1
+    zr = cur.fetchone()
 
-    total_workouts = len(all_workouts)
+    if zr and zr["total"] and int(zr["total"]) > 0:
+        # Real power zone data from Strava
+        zones: Dict[str, Dict[str, float]] = {
+            "Recovery":      {"hours": float(zr["recovery"] or 0) / 3600, "count": 0},
+            "Endurance":     {"hours": float(zr["endurance"] or 0) / 3600, "count": 0},
+            "Tempo":         {"hours": float(zr["tempo"] or 0) / 3600, "count": 0},
+            "Threshold":     {"hours": float(zr["threshold"] or 0) / 3600, "count": 0},
+            "VO2":           {"hours": float(zr["vo2"] or 0) / 3600, "count": 0},
+            "Anaerobic":     {"hours": float(zr["anaerobic"] or 0) / 3600, "count": 0},
+            "Neuromuscular": {"hours": float(zr["neuromuscular"] or 0) / 3600, "count": 0},
+        }
+        total_workouts = int(zr["n"])
+    else:
+        # Fallback to title-based classification
+        cur.execute("""
+            SELECT title, tss_actual, if_actual FROM training_workouts
+            WHERE completed = true AND tss_actual > 0
+        """)
+        all_workouts = cur.fetchall()
+        zones = {
+            "Recovery": {"hours": 0, "count": 0},
+            "Endurance": {"hours": 0, "count": 0},
+            "Tempo": {"hours": 0, "count": 0},
+            "Threshold": {"hours": 0, "count": 0},
+            "VO2": {"hours": 0, "count": 0},
+            "Anaerobic": {"hours": 0, "count": 0},
+            "Neuromuscular": {"hours": 0, "count": 0},
+        }
+        for w in all_workouts:
+            zone = _classify_zone(w["title"], w["if_actual"])
+            tss = float(w["tss_actual"] or 0)
+            if_val = float(w["if_actual"]) if w["if_actual"] else 0.65
+            hours = tss / (if_val ** 2 * 100) if if_val > 0 else tss / 42.25
+            # Map old zone names to new
+            if zone in ("Threshold/VO2",):
+                zones["Threshold"]["hours"] += hours * 0.6
+                zones["VO2"]["hours"] += hours * 0.4
+            elif zone == "Sweetspot":
+                zones["Tempo"]["hours"] += hours
+            elif zone == "Free Ride":
+                zones["Endurance"]["hours"] += hours * 0.7
+                zones["Tempo"]["hours"] += hours * 0.3
+            elif zone == "Other High Int.":
+                zones["Anaerobic"]["hours"] += hours
+            elif zone in zones:
+                zones[zone]["hours"] += hours
+            else:
+                zones["Endurance"]["hours"] += hours
+        total_workouts = len(all_workouts)
 
-    # Zone donut data (in minutes for chart, same order as labels)
-    zone_order = ["Endurance", "Tempo", "Threshold/VO2", "Free Ride", "Sweetspot", "Other High Int."]
+    # Zone donut data (in minutes for chart)
+    zone_order = ["Recovery", "Endurance", "Tempo", "Threshold", "VO2", "Anaerobic", "Neuromuscular"]
     zone_donut = [int(zones[z]["hours"] * 60) for z in zone_order]
 
     # ── FTP Trajectory ──
@@ -701,18 +742,13 @@ def generate_dashboard(upload: bool = False) -> None:
         "__HRV_30_DATA__": f"[{hrv_30_js}]",
         "__SLEEP_30_DATA__": f"[{sleep_30_js}]",
         "__QUALITY_DATA__": f"[{quality_js}]",
+        "__ZONE_RECOVERY_H__": f"{zones['Recovery']['hours']:.1f}h",
         "__ZONE_ENDURANCE_H__": f"{zones['Endurance']['hours']:.1f}h",
-        "__ZONE_ENDURANCE_N__": str(int(zones["Endurance"]["count"])),
         "__ZONE_TEMPO_H__": f"{zones['Tempo']['hours']:.1f}h",
-        "__ZONE_TEMPO_N__": str(int(zones["Tempo"]["count"])),
-        "__ZONE_THRESHOLD_H__": f"{zones['Threshold/VO2']['hours']:.1f}h",
-        "__ZONE_THRESHOLD_N__": str(int(zones["Threshold/VO2"]["count"])),
-        "__ZONE_FREERIDE_H__": f"{zones['Free Ride']['hours']:.1f}h",
-        "__ZONE_FREERIDE_N__": str(int(zones["Free Ride"]["count"])),
-        "__ZONE_SWEETSPOT_H__": f"{zones['Sweetspot']['hours']:.1f}h",
-        "__ZONE_SWEETSPOT_N__": str(int(zones["Sweetspot"]["count"])),
-        "__ZONE_OTHER_H__": f"{zones['Other High Int.']['hours']:.1f}h",
-        "__ZONE_OTHER_N__": str(int(zones["Other High Int."]["count"])),
+        "__ZONE_THRESHOLD_H__": f"{zones['Threshold']['hours']:.1f}h",
+        "__ZONE_VO2_H__": f"{zones['VO2']['hours']:.1f}h",
+        "__ZONE_ANAEROBIC_H__": f"{zones['Anaerobic']['hours']:.1f}h",
+        "__ZONE_NEUROMUSCULAR_H__": f"{zones['Neuromuscular']['hours']:.1f}h",
         "__ZONE_DONUT_DATA__": str(zone_donut),
         "__TOTAL_WORKOUTS__": str(total_workouts),
         "__RECOVERY_FINDING__": recovery_finding,
