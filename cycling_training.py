@@ -1322,24 +1322,70 @@ def get_kit_recommendation(temp_f):
         return "☀️ Summer kit: short sleeve jersey, bibs, sunscreen"
 
 
-def weather(location="Brooklyn, NY"):
-    """Show weather and ride kit recommendation."""
-    loc_url = location.replace(" ", "+").replace(",", ",")
+GEOCODE_CACHE = {
+    "brooklyn, ny": (40.6782, -73.9442),
+    "new york": (40.7128, -74.0060),
+    "manhattan": (40.7831, -73.9712),
+    "central park": (40.7829, -73.9654),
+}
+
+WMO_CODES = {
+    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+    45: "Foggy", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle",
+    55: "Heavy drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+    80: "Light showers", 81: "Showers", 82: "Heavy showers",
+    85: "Light snow showers", 86: "Heavy snow showers",
+    95: "Thunderstorm", 96: "Thunderstorm w/ hail", 99: "Thunderstorm w/ heavy hail",
+}
+
+
+def geocode(location):
+    """Get lat/lon for a location. Uses cache or Open-Meteo geocoding."""
+    key = location.lower().strip()
+    if key in GEOCODE_CACHE:
+        return GEOCODE_CACHE[key]
     try:
-        resp = requests.get(f"https://wttr.in/{loc_url}?format=j1", timeout=10)
+        resp = requests.get(
+            f"https://geocoding-api.open-meteo.com/v1/search?name={location}&count=1&language=en&format=json",
+            timeout=10,
+        )
+        results = resp.json().get("results", [])
+        if results:
+            return (results[0]["latitude"], results[0]["longitude"])
+    except Exception:
+        pass
+    return (40.6782, -73.9442)  # Default Brooklyn
+
+
+def c_to_f(c):
+    return round(c * 9 / 5 + 32)
+
+
+def weather(location="Brooklyn, NY"):
+    """Show weather and ride kit recommendation using Open-Meteo."""
+    lat, lon = geocode(location)
+    try:
+        resp = requests.get(
+            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+            f"&current=temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,relative_humidity_2m,weather_code"
+            f"&daily=temperature_2m_max,temperature_2m_min,weather_code"
+            f"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America/New_York&forecast_days=3",
+            timeout=10,
+        )
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
         print(f"❌ Weather fetch failed: {e}")
         return
 
-    current = data.get("current_condition", [{}])[0]
-    temp_f = int(current.get("temp_F", 0))
-    feels_f = int(current.get("FeelsLikeF", 0))
-    wind_mph = int(current.get("windspeedMiles", 0))
-    wind_dir = current.get("winddir16Point", "")
-    desc = current.get("weatherDesc", [{}])[0].get("value", "")
-    humidity = current.get("humidity", "")
+    cur = data.get("current", {})
+    temp_f = round(cur.get("temperature_2m", 0))
+    feels_f = round(cur.get("apparent_temperature", 0))
+    wind_mph = round(cur.get("wind_speed_10m", 0))
+    humidity = cur.get("relative_humidity_2m", 0)
+    wcode = cur.get("weather_code", 0)
+    desc = WMO_CODES.get(wcode, "Unknown")
 
     print("═" * 55)
     print(f"    🌤️  WEATHER — {location}")
@@ -1347,24 +1393,26 @@ def weather(location="Brooklyn, NY"):
 
     print(f"\n  NOW: {temp_f}F (feels like {feels_f}F)")
     print(f"  Conditions: {desc}")
-    print(f"  Wind: {wind_mph} mph {wind_dir}")
+    print(f"  Wind: {wind_mph} mph")
     print(f"  Humidity: {humidity}%")
 
-    # Kit recommendation based on feels-like
     print(f"\n  KIT: {get_kit_recommendation(feels_f)}")
 
-    # Forecast
-    forecasts = data.get("weather", [])
-    if forecasts:
+    daily = data.get("daily", {})
+    dates = daily.get("time", [])
+    highs = daily.get("temperature_2m_max", [])
+    lows = daily.get("temperature_2m_min", [])
+    codes = daily.get("weather_code", [])
+
+    if dates:
         print(f"\n  {'Date':<12} {'High':>5} {'Low':>5} {'Conditions'}")
         print("  " + "-" * 45)
-        for day in forecasts[:3]:
-            d = day.get("date", "")
-            hi = day.get("maxtempF", "")
-            lo = day.get("mintempF", "")
-            cond = day.get("hourly", [{}])[4].get("weatherDesc", [{}])[0].get("value", "") if len(day.get("hourly", [])) > 4 else ""
-            rideable = "✅" if int(hi) >= 30 else "❄️"
-            print(f"  {d:<12} {hi:>4}F {lo:>4}F {cond} {rideable}")
+        for i in range(min(3, len(dates))):
+            hi = round(highs[i])
+            lo = round(lows[i])
+            cond = WMO_CODES.get(codes[i], "")
+            rideable = "✅" if hi >= 30 else "❄️"
+            print(f"  {dates[i]:<12} {hi:>4}F {lo:>4}F {cond} {rideable}")
 
     print("\n" + "═" * 55)
 
