@@ -22,7 +22,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from config import get_config, get_path
+from config import ConfigError, get_config, get_path
 
 import warnings
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*")
@@ -31,56 +31,174 @@ import psycopg2
 import psycopg2.extras
 import requests
 
-CONFIG = get_config()
+CONFIG: Dict[str, Any] = {}
+_CONFIG_LOADED = False
 
-DB_CONN = CONFIG["database"]["connection"]
-WHOOP_ENV = get_path(CONFIG["credentials"]["whoop_env"])
-TP_ENV = get_path(CONFIG["credentials"]["trainingpeaks_env"])
-STRAVA_ENV = get_path(CONFIG["credentials"]["strava_env"])
-TP_TOKEN_CACHE = get_path(CONFIG["cache"]["trainingpeaks_token"])
+DB_CONN = ""
+WHOOP_ENV = Path(".")
+TP_ENV = Path(".")
+STRAVA_ENV = Path(".")
+TP_TOKEN_CACHE = Path(".")
 
-WHOOP_API_BASE = CONFIG["api"]["whoop"]["base_url"]
-WHOOP_RECOVERY_ENDPOINT = CONFIG["api"]["whoop"]["recovery_endpoint"]
-WHOOP_SLEEP_ENDPOINT = CONFIG["api"]["whoop"]["sleep_endpoint"]
-WHOOP_CYCLE_ENDPOINT = CONFIG["api"]["whoop"]["cycle_endpoint"]
-WHOOP_TIMEOUT_SEC = CONFIG["api"]["whoop"]["timeout_sec"]
+WHOOP_API_BASE = ""
+WHOOP_RECOVERY_ENDPOINT = ""
+WHOOP_SLEEP_ENDPOINT = ""
+WHOOP_CYCLE_ENDPOINT = ""
+WHOOP_TIMEOUT_SEC = 15
 
-TP_TOKEN_URL = CONFIG["api"]["trainingpeaks"]["token_url"]
-TP_WORKOUTS_URL_TEMPLATE = CONFIG["api"]["trainingpeaks"]["workouts_url_template"]
-TP_TIMEOUT_SEC = CONFIG["api"]["trainingpeaks"]["timeout_sec"]
-TP_DEFAULT_USER_ID = CONFIG["api"]["trainingpeaks"]["default_user_id"]
+TP_TOKEN_URL = ""
+TP_WORKOUTS_URL_TEMPLATE = ""
+TP_TIMEOUT_SEC = 15
+TP_DEFAULT_USER_ID = ""
 
-STRAVA_OAUTH_TOKEN_URL = CONFIG["api"]["strava"]["oauth_token_url"]
-STRAVA_API_BASE = CONFIG["api"]["strava"]["api_base_url"]
-STRAVA_ACTIVITIES_ENDPOINT = CONFIG["api"]["strava"]["activities_endpoint"]
-STRAVA_ACTIVITY_ZONES_ENDPOINT = CONFIG["api"]["strava"]["activity_zones_endpoint"]
-STRAVA_CLUB_EVENTS_ENDPOINT = CONFIG["api"]["strava"]["club_events_endpoint"]
-STRAVA_TIMEOUT_SEC = CONFIG["api"]["strava"]["timeout_sec"]
-STRAVA_RATE_LIMIT_THRESHOLD = CONFIG["api"]["strava"]["rate_limit_threshold"]
-STRAVA_RATE_LIMIT_PAUSE_SEC = CONFIG["api"]["strava"]["rate_limit_pause_sec"]
-STRAVA_MAX_RETRIES = CONFIG["api"]["strava"]["max_retries"]
-STRAVA_RETRY_BASE_DELAY_SEC = CONFIG["api"]["strava"]["retry_base_delay_sec"]
+STRAVA_OAUTH_TOKEN_URL = ""
+STRAVA_API_BASE = ""
+STRAVA_ACTIVITIES_ENDPOINT = ""
+STRAVA_ACTIVITY_ZONES_ENDPOINT = ""
+STRAVA_CLUB_EVENTS_ENDPOINT = ""
+STRAVA_TIMEOUT_SEC = 15
+STRAVA_RATE_LIMIT_THRESHOLD = 90
+STRAVA_RATE_LIMIT_PAUSE_SEC = 900
+STRAVA_MAX_RETRIES = 5
+STRAVA_RETRY_BASE_DELAY_SEC = 5
 
-WEATHER_GEOCODE_URL = CONFIG["api"]["weather"]["geocode_url"]
-WEATHER_FORECAST_URL = CONFIG["api"]["weather"]["forecast_url"]
-WEATHER_FORECAST_DAYS = CONFIG["api"]["weather"]["forecast_days"]
-WEATHER_TIMEZONE = CONFIG["api"]["weather"]["timezone"]
-WEATHER_TEMP_UNIT = CONFIG["api"]["weather"]["temperature_unit"]
-WEATHER_WIND_UNIT = CONFIG["api"]["weather"]["wind_speed_unit"]
-WEATHER_DEFAULT_LOCATION = CONFIG["api"]["weather"]["default_location"]
-WEATHER_DEFAULT_LAT = CONFIG["api"]["weather"]["default_lat"]
-WEATHER_DEFAULT_LON = CONFIG["api"]["weather"]["default_lon"]
+WEATHER_GEOCODE_URL = ""
+WEATHER_FORECAST_URL = ""
+WEATHER_FORECAST_DAYS = 3
+WEATHER_TIMEZONE = ""
+WEATHER_TEMP_UNIT = ""
+WEATHER_WIND_UNIT = ""
+WEATHER_DEFAULT_LOCATION = ""
+WEATHER_DEFAULT_LAT = 0.0
+WEATHER_DEFAULT_LON = 0.0
 
-RACE_WEATHER_URL = CONFIG["api"]["race_weather"]["forecast_url"]
-RACE_WEATHER_USER_AGENT = CONFIG["api"]["race_weather"]["user_agent"]
-RACE_WEATHER_LAT = CONFIG["api"]["race_weather"]["lat"]
-RACE_WEATHER_LON = CONFIG["api"]["race_weather"]["lon"]
+RACE_WEATHER_URL = ""
+RACE_WEATHER_USER_AGENT = ""
+RACE_WEATHER_LAT = 0.0
+RACE_WEATHER_LON = 0.0
 
 # Strava clubs to check for events
-STRAVA_CLUBS = {int(k): v for k, v in CONFIG["strava"]["clubs"].items()}
+STRAVA_CLUBS: Dict[int, str] = {}
+COACH_ZONES: List[Tuple[str, int, int]] = []
+GEOCODE_CACHE: Dict[str, Tuple[float, float]] = {}
+WMO_CODES: Dict[int, str] = {}
+KIT_THRESHOLDS: List[Dict[str, Any]] = []
+
+RACE_DATE = date.today()
+HALVVATTERN_DATE = date.today()
+RACE_DISTANCE_KM = 0
+RACE_TARGET_HOURS = 0.0
+RACE_TARGET_AVG_KPH = 0.0
+RACE_SEGMENTS: List[Dict[str, Any]] = []
+VATTERN_SEGMENTS: List[Dict[str, Any]] = []
+RACE_START_TIME = ""
+REST_STOPS: List[Dict[str, Any]] = []
+RACE_REST_STOPS: List[Dict[str, Any]] = []
+RACE_TAPER: Dict[str, Any] = {}
+RACE_CLIMATE: Dict[str, Any] = {}
+DEFAULT_FTP = 0
+TARGET_FTP = 0
+TARGET_FTP_DATE = date.today()
+NEXT_TEST_DATE = date.today()
+
+
+def init_config() -> None:
+    global CONFIG, _CONFIG_LOADED
+    global DB_CONN, WHOOP_ENV, TP_ENV, STRAVA_ENV, TP_TOKEN_CACHE
+    global WHOOP_API_BASE, WHOOP_RECOVERY_ENDPOINT, WHOOP_SLEEP_ENDPOINT, WHOOP_CYCLE_ENDPOINT, WHOOP_TIMEOUT_SEC
+    global TP_TOKEN_URL, TP_WORKOUTS_URL_TEMPLATE, TP_TIMEOUT_SEC, TP_DEFAULT_USER_ID
+    global STRAVA_OAUTH_TOKEN_URL, STRAVA_API_BASE, STRAVA_ACTIVITIES_ENDPOINT, STRAVA_ACTIVITY_ZONES_ENDPOINT
+    global STRAVA_CLUB_EVENTS_ENDPOINT, STRAVA_TIMEOUT_SEC, STRAVA_RATE_LIMIT_THRESHOLD, STRAVA_RATE_LIMIT_PAUSE_SEC
+    global STRAVA_MAX_RETRIES, STRAVA_RETRY_BASE_DELAY_SEC
+    global WEATHER_GEOCODE_URL, WEATHER_FORECAST_URL, WEATHER_FORECAST_DAYS, WEATHER_TIMEZONE
+    global WEATHER_TEMP_UNIT, WEATHER_WIND_UNIT, WEATHER_DEFAULT_LOCATION, WEATHER_DEFAULT_LAT, WEATHER_DEFAULT_LON
+    global RACE_WEATHER_URL, RACE_WEATHER_USER_AGENT, RACE_WEATHER_LAT, RACE_WEATHER_LON
+    global STRAVA_CLUBS, COACH_ZONES, GEOCODE_CACHE, WMO_CODES, KIT_THRESHOLDS
+    global RACE_DATE, HALVVATTERN_DATE, RACE_DISTANCE_KM, RACE_TARGET_HOURS, RACE_TARGET_AVG_KPH
+    global RACE_SEGMENTS, VATTERN_SEGMENTS, RACE_START_TIME, REST_STOPS, RACE_REST_STOPS
+    global RACE_TAPER, RACE_CLIMATE, DEFAULT_FTP, TARGET_FTP, TARGET_FTP_DATE, NEXT_TEST_DATE
+
+    if _CONFIG_LOADED:
+        return
+
+    try:
+        CONFIG = get_config()
+    except ConfigError as exc:
+        print(f"❌ {exc}")
+        sys.exit(1)
+
+    DB_CONN = CONFIG["database"]["connection"]
+    WHOOP_ENV = get_path(CONFIG["credentials"]["whoop_env"])
+    TP_ENV = get_path(CONFIG["credentials"]["trainingpeaks_env"])
+    STRAVA_ENV = get_path(CONFIG["credentials"]["strava_env"])
+    TP_TOKEN_CACHE = get_path(CONFIG["cache"]["trainingpeaks_token"])
+
+    WHOOP_API_BASE = CONFIG["api"]["whoop"]["base_url"]
+    WHOOP_RECOVERY_ENDPOINT = CONFIG["api"]["whoop"]["recovery_endpoint"]
+    WHOOP_SLEEP_ENDPOINT = CONFIG["api"]["whoop"]["sleep_endpoint"]
+    WHOOP_CYCLE_ENDPOINT = CONFIG["api"]["whoop"]["cycle_endpoint"]
+    WHOOP_TIMEOUT_SEC = CONFIG["api"]["whoop"]["timeout_sec"]
+
+    TP_TOKEN_URL = CONFIG["api"]["trainingpeaks"]["token_url"]
+    TP_WORKOUTS_URL_TEMPLATE = CONFIG["api"]["trainingpeaks"]["workouts_url_template"]
+    TP_TIMEOUT_SEC = CONFIG["api"]["trainingpeaks"]["timeout_sec"]
+    TP_DEFAULT_USER_ID = CONFIG["api"]["trainingpeaks"]["default_user_id"]
+
+    STRAVA_OAUTH_TOKEN_URL = CONFIG["api"]["strava"]["oauth_token_url"]
+    STRAVA_API_BASE = CONFIG["api"]["strava"]["api_base_url"]
+    STRAVA_ACTIVITIES_ENDPOINT = CONFIG["api"]["strava"]["activities_endpoint"]
+    STRAVA_ACTIVITY_ZONES_ENDPOINT = CONFIG["api"]["strava"]["activity_zones_endpoint"]
+    STRAVA_CLUB_EVENTS_ENDPOINT = CONFIG["api"]["strava"]["club_events_endpoint"]
+    STRAVA_TIMEOUT_SEC = CONFIG["api"]["strava"]["timeout_sec"]
+    STRAVA_RATE_LIMIT_THRESHOLD = CONFIG["api"]["strava"]["rate_limit_threshold"]
+    STRAVA_RATE_LIMIT_PAUSE_SEC = CONFIG["api"]["strava"]["rate_limit_pause_sec"]
+    STRAVA_MAX_RETRIES = CONFIG["api"]["strava"]["max_retries"]
+    STRAVA_RETRY_BASE_DELAY_SEC = CONFIG["api"]["strava"]["retry_base_delay_sec"]
+
+    WEATHER_GEOCODE_URL = CONFIG["api"]["weather"]["geocode_url"]
+    WEATHER_FORECAST_URL = CONFIG["api"]["weather"]["forecast_url"]
+    WEATHER_FORECAST_DAYS = CONFIG["api"]["weather"]["forecast_days"]
+    WEATHER_TIMEZONE = CONFIG["api"]["weather"]["timezone"]
+    WEATHER_TEMP_UNIT = CONFIG["api"]["weather"]["temperature_unit"]
+    WEATHER_WIND_UNIT = CONFIG["api"]["weather"]["wind_speed_unit"]
+    WEATHER_DEFAULT_LOCATION = CONFIG["api"]["weather"]["default_location"]
+    WEATHER_DEFAULT_LAT = CONFIG["api"]["weather"]["default_lat"]
+    WEATHER_DEFAULT_LON = CONFIG["api"]["weather"]["default_lon"]
+
+    RACE_WEATHER_URL = CONFIG["api"]["race_weather"]["forecast_url"]
+    RACE_WEATHER_USER_AGENT = CONFIG["api"]["race_weather"]["user_agent"]
+    RACE_WEATHER_LAT = CONFIG["api"]["race_weather"]["lat"]
+    RACE_WEATHER_LON = CONFIG["api"]["race_weather"]["lon"]
+
+    STRAVA_CLUBS = {int(k): v for k, v in CONFIG["strava"]["clubs"].items()}
+    COACH_ZONES = [(z["name"], z["min"], z["max"]) for z in CONFIG["strava"]["coach_zones"]]
+    GEOCODE_CACHE = {k: tuple(v) for k, v in CONFIG["weather"]["geocode_cache"].items()}
+    WMO_CODES = {int(k): v for k, v in CONFIG["weather"]["wmo_codes"].items()}
+    KIT_THRESHOLDS = CONFIG["weather"]["kit_thresholds_f"]
+
+    RACE_DATE = date.fromisoformat(CONFIG["race"]["race_date"])
+    HALVVATTERN_DATE = date.fromisoformat(CONFIG["race"]["halvvattern_date"])
+    RACE_DISTANCE_KM = CONFIG["race"]["distance_km"]
+    RACE_TARGET_HOURS = CONFIG["race"]["target_hours"]
+    RACE_TARGET_AVG_KPH = CONFIG["race"]["target_avg_kph"]
+    RACE_SEGMENTS = CONFIG["race"]["segments"]
+    VATTERN_SEGMENTS = RACE_SEGMENTS
+    RACE_START_TIME = CONFIG["race"]["start_time"]
+    RACE_REST_STOPS = CONFIG["race"]["rest_stops"]
+    REST_STOPS = RACE_REST_STOPS
+    RACE_TAPER = CONFIG["race"]["taper"]
+    RACE_CLIMATE = CONFIG["race"]["climate_averages"]
+
+    DEFAULT_FTP = CONFIG["ftp"]["default_ftp"]
+    TARGET_FTP = CONFIG["ftp"]["target_ftp"]
+    TARGET_FTP_DATE = date.fromisoformat(CONFIG["ftp"]["target_date"])
+    NEXT_TEST_DATE = date.fromisoformat(CONFIG["ftp"]["next_test_date"])
+
+    _CONFIG_LOADED = True
 
 
 def get_db() -> Any:
+    init_config()
     return psycopg2.connect(DB_CONN)
 
 
@@ -280,6 +398,7 @@ def tp_get_token() -> Optional[str]:
     with os.fdopen(tmp_fd, 'w') as f:
         f.write(cache_content)
     os.rename(tmp_path, str(TP_TOKEN_CACHE))
+    os.chmod(TP_TOKEN_CACHE, 0o600)
     return access_token
 
 
@@ -1000,6 +1119,7 @@ def strava_refresh_token() -> Optional[str]:
     with os.fdopen(tmp_fd, 'w') as f:
         f.write(new_content)
     os.rename(tmp_path, str(STRAVA_ENV))
+    os.chmod(STRAVA_ENV, 0o600)
     return new_access
 
 
@@ -1076,11 +1196,6 @@ def strava_api(endpoint, token):
 
 
 # ── Strava Power Zones ─────────────────────────────────────────────
-
-COACH_ZONES = [
-    (z["name"], z["min"], z["max"]) for z in CONFIG["strava"]["coach_zones"]
-]
-
 
 def _map_bucket_to_zones(bucket_min: int, bucket_max: int, time_sec: float) -> Dict[str, float]:
     """Map a Strava power bucket to Coach Max zones using proportional splitting.
@@ -1387,11 +1502,6 @@ def get_kit_recommendation(temp_f):
     return KIT_THRESHOLDS[-1]["recommendation"]
 
 
-GEOCODE_CACHE = {k: tuple(v) for k, v in CONFIG["weather"]["geocode_cache"].items()}
-WMO_CODES = {int(k): v for k, v in CONFIG["weather"]["wmo_codes"].items()}
-KIT_THRESHOLDS = CONFIG["weather"]["kit_thresholds_f"]
-
-
 def geocode(location):
     """Get lat/lon for a location. Uses cache or Open-Meteo geocoding."""
     key = location.lower().strip()
@@ -1414,8 +1524,10 @@ def c_to_f(c):
     return round(c * 9 / 5 + 32)
 
 
-def weather(location: str = WEATHER_DEFAULT_LOCATION) -> None:
+def weather(location: Optional[str] = None) -> None:
     """Show weather and ride kit recommendation using Open-Meteo."""
+    if location is None:
+        location = WEATHER_DEFAULT_LOCATION
     lat, lon = geocode(location)
     try:
         resp = requests.get(
@@ -1961,25 +2073,6 @@ def get_top_insight() -> Optional[Tuple[str, str, str]]:
 
 # ── Phase 5: Vatternrundan Race Prep ──────────────────────────────
 
-RACE_DATE = date.fromisoformat(CONFIG["race"]["race_date"])  # Vätternrundan start
-HALVVATTERN_DATE = date.fromisoformat(CONFIG["race"]["halvvattern_date"])
-RACE_DISTANCE_KM = CONFIG["race"]["distance_km"]
-RACE_TARGET_HOURS = CONFIG["race"]["target_hours"]
-RACE_TARGET_AVG_KPH = CONFIG["race"]["target_avg_kph"]
-
-VATTERN_SEGMENTS = CONFIG["race"]["segments"]
-RACE_START_TIME = CONFIG["race"]["start_time"]
-REST_STOPS = CONFIG["race"]["rest_stops"]
-
-DEFAULT_FTP = CONFIG["ftp"]["default_ftp"]
-TARGET_FTP = CONFIG["ftp"]["target_ftp"]
-TARGET_FTP_DATE = date.fromisoformat(CONFIG["ftp"]["target_date"])
-NEXT_TEST_DATE = date.fromisoformat(CONFIG["ftp"]["next_test_date"])
-
-TAPER_SETTINGS = CONFIG["race"]["taper"]
-CLIMATE_AVERAGES = CONFIG["race"]["climate_averages"]
-
-
 def _get_current_ftp() -> Tuple[int, date]:
     """Get current FTP from ftp_history."""
     conn = get_db()
@@ -2510,7 +2603,7 @@ def main() -> None:
     sub.add_parser("strava-events", help="Show upcoming Strava club events")
 
     p_weather = sub.add_parser("weather", help="Weather and ride kit recommendation")
-    p_weather.add_argument("location", nargs="?", default="Brooklyn, NY", help="Location (default: Brooklyn, NY)")
+    p_weather.add_argument("location", nargs="?", default=None, help="Location (default: config.json)")
 
     sub.add_parser("correlate", help="Recovery-training correlation analysis")
     sub.add_parser("trends", help="Long-term training trends")
@@ -2525,6 +2618,12 @@ def main() -> None:
     sub.add_parser("race-countdown", help="Combined race dashboard")
 
     args = parser.parse_args()
+
+    if args.command is None:
+        parser.print_help()
+        return
+
+    init_config()
 
     if args.command == "generate-dashboard":
         from dashboard_generator import generate_dashboard

@@ -10,6 +10,10 @@ DEFAULT_CONFIG_PATH = Path(
 )
 
 
+class ConfigError(RuntimeError):
+    pass
+
+
 def _resolve_path(value: str) -> Path:
     expanded = Path(os.path.expanduser(value))
     if expanded.is_absolute():
@@ -20,8 +24,17 @@ def _resolve_path(value: str) -> Path:
 @lru_cache(maxsize=1)
 def load_config() -> Dict[str, Any]:
     if not DEFAULT_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"Config not found: {DEFAULT_CONFIG_PATH}")
-    return json.loads(DEFAULT_CONFIG_PATH.read_text())
+        raise ConfigError(
+            f"Config not found: {DEFAULT_CONFIG_PATH}. "
+            "Copy config.example.json to config.json or set CYCLING_TRAINING_CONFIG."
+        )
+    try:
+        return json.loads(DEFAULT_CONFIG_PATH.read_text())
+    except json.JSONDecodeError as exc:
+        raise ConfigError(
+            f"Config is not valid JSON: {DEFAULT_CONFIG_PATH} (line {exc.lineno}, column {exc.colno}). "
+            "Fix the JSON or copy config.example.json and reapply changes."
+        ) from exc
 
 
 def get_config() -> Dict[str, Any]:

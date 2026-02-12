@@ -1,21 +1,17 @@
 {
   "_comment": "Copy this file to config.json and customize for your setup.",
-
   "database": {
     "connection": "dbname=cycling_training user=postgres"
   },
-
   "credentials": {
     "whoop_env": "~/.config/cycling-training/whoop.env",
     "trainingpeaks_env": "~/.config/cycling-training/trainingpeaks.env",
     "strava_env": "~/.config/cycling-training/strava.env",
     "fastmail_env": "~/.config/cycling-training/fastmail.env"
   },
-
   "cache": {
     "trainingpeaks_token": "~/.cache/cycling-training/tp-token.json"
   },
-
   "api": {
     "whoop": {
       "base_url": "https://api.prod.whoop.com/developer",
@@ -51,7 +47,7 @@
       "wind_speed_unit": "mph",
       "default_location": "Your City, State",
       "default_lat": 40.7128,
-      "default_lon": -74.0060
+      "default_lon": -74.006
     },
     "race_weather": {
       "forecast_url": "https://api.met.no/weatherapi/locationforecast/2.0/compact",
@@ -60,7 +56,6 @@
       "lon": 0.0
     }
   },
-
   "strava": {
     "_clubs_comment": "Map of Strava club IDs to display names. Find club IDs from the Strava URL: strava.com/clubs/{id}",
     "clubs": {
@@ -69,20 +64,50 @@
     },
     "_zones_comment": "Power zones in watts, based on your FTP. These follow the classic Coggan 7-zone model. Recalculate when your FTP changes.",
     "coach_zones": [
-      {"name": "recovery", "min": 0, "max": 144},
-      {"name": "endurance", "min": 145, "max": 196},
-      {"name": "tempo", "min": 197, "max": 236},
-      {"name": "threshold", "min": 237, "max": 275},
-      {"name": "vo2", "min": 276, "max": 314},
-      {"name": "anaerobic", "min": 315, "max": 393},
-      {"name": "neuromuscular", "min": 394, "max": 9999}
+      {
+        "name": "recovery",
+        "min": 0,
+        "max": 144
+      },
+      {
+        "name": "endurance",
+        "min": 145,
+        "max": 196
+      },
+      {
+        "name": "tempo",
+        "min": 197,
+        "max": 236
+      },
+      {
+        "name": "threshold",
+        "min": 237,
+        "max": 275
+      },
+      {
+        "name": "vo2",
+        "min": 276,
+        "max": 314
+      },
+      {
+        "name": "anaerobic",
+        "min": 315,
+        "max": 393
+      },
+      {
+        "name": "neuromuscular",
+        "min": 394,
+        "max": 9999
+      }
     ]
   },
-
   "weather": {
     "_geocode_cache_comment": "Pre-cached lat/lon for locations you check frequently, avoids geocoding API calls.",
     "geocode_cache": {
-      "your city": [40.7128, -74.0060]
+      "your city": [
+        40.7128,
+        -74.006
+      ]
     },
     "wmo_codes": {
       "0": "Clear sky",
@@ -112,15 +137,32 @@
     },
     "_kit_comment": "Temperature thresholds (Fahrenheit) for clothing recommendations. Customize for your climate and preferences.",
     "kit_thresholds_f": [
-      {"max_temp": 29, "recommendation": "Below 30F - indoor ride recommended"},
-      {"max_temp": 39, "recommendation": "Full winter kit: thermal bibs, winter jacket, shoe covers, heavy gloves, balaclava"},
-      {"max_temp": 49, "recommendation": "Cold weather: thermal jersey, leg warmers, wind vest, medium gloves, ear cover"},
-      {"max_temp": 59, "recommendation": "Cool weather: long sleeve jersey, arm warmers, knee warmers, light gloves"},
-      {"max_temp": 69, "recommendation": "Mild: short sleeve jersey, bibs, light arm warmers optional"},
-      {"max_temp": 200, "recommendation": "Summer kit: short sleeve jersey, bibs, sunscreen"}
+      {
+        "max_temp": 29,
+        "recommendation": "Below 30F - indoor ride recommended"
+      },
+      {
+        "max_temp": 39,
+        "recommendation": "Full winter kit: thermal bibs, winter jacket, shoe covers, heavy gloves, balaclava"
+      },
+      {
+        "max_temp": 49,
+        "recommendation": "Cold weather: thermal jersey, leg warmers, wind vest, medium gloves, ear cover"
+      },
+      {
+        "max_temp": 59,
+        "recommendation": "Cool weather: long sleeve jersey, arm warmers, knee warmers, light gloves"
+      },
+      {
+        "max_temp": 69,
+        "recommendation": "Mild: short sleeve jersey, bibs, light arm warmers optional"
+      },
+      {
+        "max_temp": 200,
+        "recommendation": "Summer kit: short sleeve jersey, bibs, sunscreen"
+      }
     ]
   },
-
   "ftp": {
     "_comment": "Your current FTP (watts), goal FTP, target date (ISO format), and next scheduled test date.",
     "default_ftp": 200,
@@ -128,7 +170,6 @@
     "target_date": "2026-12-31",
     "next_test_date": "2026-03-01"
   },
-
   "race": {
     "_comment": "Configure for your target event. All fields are optional; remove the race section entirely if you're not targeting a specific event.",
     "race_date": "2026-06-13",
@@ -138,12 +179,36 @@
     "target_hours": 8.0,
     "target_avg_kph": 25.0,
     "segments": [
-      {"name": "Start to Checkpoint 1", "km_start": 0, "km_end": 50, "terrain": "Flat", "notes": "Easy start, find rhythm."},
-      {"name": "Checkpoint 1 to Finish", "km_start": 50, "km_end": 200, "terrain": "Rolling", "notes": "Maintain steady effort."}
+      {
+        "name": "Start to Checkpoint 1",
+        "km_start": 0,
+        "km_end": 50,
+        "terrain": "Flat",
+        "notes": "Easy start, find rhythm."
+      },
+      {
+        "name": "Checkpoint 1 to Finish",
+        "km_start": 50,
+        "km_end": 200,
+        "terrain": "Rolling",
+        "notes": "Maintain steady effort."
+      }
     ],
     "rest_stops": [
-      {"km": 50, "mi": 31, "name": "Checkpoint 1", "stop_min": 10, "action": "Refill bottles, quick food."},
-      {"km": 150, "mi": 93, "name": "Checkpoint 2", "stop_min": 15, "action": "Longer stop, real food."}
+      {
+        "km": 50,
+        "mi": 31,
+        "name": "Checkpoint 1",
+        "stop_min": 10,
+        "action": "Refill bottles, quick food."
+      },
+      {
+        "km": 150,
+        "mi": 93,
+        "name": "Checkpoint 2",
+        "stop_min": 15,
+        "action": "Longer stop, real food."
+      }
     ],
     "taper": {
       "base_weekly_tss_min": 300,
@@ -161,12 +226,14 @@
       "wind": "Variable"
     }
   },
-
   "dashboard": {
     "project_dir": ".",
     "template_path": "dashboard_template.html",
     "output_path": "dashboard.html",
     "athlete_name": "Athlete",
-    "coach_name": "Coach"
+    "coach_name": "Coach",
+    "upload_url": "https://your-webdav-server.com/path/dashboard.html",
+    "upload_user": "your@email.com",
+    "_upload_comment": "WebDAV URL and user for --upload. Password comes from fastmail.env (FASTMAIL_FILES_PASSWORD)."
   }
 }

@@ -3,32 +3,94 @@ Dashboard generator module for cycling-training CLI.
 Queries PostgreSQL and fills dashboard_template.html to produce dashboard.html.
 """
 
+import html
 import json
 import os
-import subprocess
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import psycopg2
 import psycopg2.extras
+import requests
 
-DB_CONN = os.environ.get("CT_DB_CONN", "dbname=auri_memory")
-PROJECT_DIR = Path(os.environ.get("CT_PROJECT_DIR", Path(__file__).parent))
-ATHLETE_NAME = os.environ.get("CT_ATHLETE_NAME", "Athlete")
-ATHLETE_FIRST = os.environ.get("CT_ATHLETE_FIRST", ATHLETE_NAME.split()[0])
-COACH_NAME = os.environ.get("CT_COACH_NAME", "Coach")
-COACH_FIRST = os.environ.get("CT_COACH_FIRST", COACH_NAME.split()[0])
-TEMPLATE_PATH = PROJECT_DIR / "dashboard_template.html"
-OUTPUT_PATH = PROJECT_DIR / "dashboard.html"
+from config import ConfigError, get_config, get_path
 
-HALVVATTERN_DATE = date(2026, 6, 6)
-VATTERNRUNDAN_DATE = date(2026, 6, 13)
-FTP_TARGET = 300
+DB_CONN = ""
+PROJECT_DIR = Path(".")
+ATHLETE_NAME = "Athlete"
+ATHLETE_FIRST = "Athlete"
+COACH_NAME = "Coach"
+COACH_FIRST = "Coach"
+TEMPLATE_PATH = Path("dashboard_template.html")
+OUTPUT_PATH = Path("dashboard.html")
+FASTMAIL_ENV = Path(".")
+
+HALVVATTERN_DATE = date.today()
+VATTERNRUNDAN_DATE = date.today()
+FTP_TARGET = 0
+DEFAULT_FTP = 0
+FASTMAIL_UPLOAD_URL = ""
+FASTMAIL_UPLOAD_USER = ""
+_CONFIG_LOADED = False
+
+
+def init_config() -> bool:
+    global DB_CONN, PROJECT_DIR, ATHLETE_NAME, ATHLETE_FIRST, COACH_NAME, COACH_FIRST
+    global TEMPLATE_PATH, OUTPUT_PATH, FASTMAIL_ENV, FASTMAIL_UPLOAD_URL, FASTMAIL_UPLOAD_USER
+    global HALVVATTERN_DATE, VATTERNRUNDAN_DATE
+    global FTP_TARGET, DEFAULT_FTP, _CONFIG_LOADED
+
+    if _CONFIG_LOADED:
+        return True
+
+    try:
+        config = get_config()
+    except ConfigError as exc:
+        print(f"❌ {exc}")
+        return False
+
+    dash_config = config.get("dashboard", {})
+    DB_CONN = os.environ.get("CT_DB_CONN", config["database"]["connection"])
+    PROJECT_DIR = Path(
+        os.environ.get("CT_PROJECT_DIR", get_path(dash_config.get("project_dir", ".")))
+    )
+    ATHLETE_NAME = os.environ.get("CT_ATHLETE_NAME", dash_config.get("athlete_name", "Athlete"))
+    ATHLETE_FIRST = os.environ.get("CT_ATHLETE_FIRST", ATHLETE_NAME.split()[0])
+    COACH_NAME = os.environ.get("CT_COACH_NAME", dash_config.get("coach_name", "Coach"))
+    COACH_FIRST = os.environ.get("CT_COACH_FIRST", COACH_NAME.split()[0])
+    TEMPLATE_PATH = PROJECT_DIR / dash_config.get("template_path", "dashboard_template.html")
+    OUTPUT_PATH = PROJECT_DIR / dash_config.get("output_path", "dashboard.html")
+    FASTMAIL_ENV = get_path(config["credentials"]["fastmail_env"])
+    FASTMAIL_UPLOAD_URL = dash_config.get("upload_url", "")
+    FASTMAIL_UPLOAD_USER = dash_config.get("upload_user", "")
+
+    HALVVATTERN_DATE = date.fromisoformat(config["race"]["halvvattern_date"])
+    VATTERNRUNDAN_DATE = date.fromisoformat(config["race"]["race_date"])
+    FTP_TARGET = config["ftp"]["target_ftp"]
+    DEFAULT_FTP = config["ftp"]["default_ftp"]
+
+    _CONFIG_LOADED = True
+    return True
 
 
 def _db():
     return psycopg2.connect(DB_CONN)
+
+
+def _escape(value: Any) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def load_env(path: Path) -> Dict[str, str]:
+    env: Dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"')
+    return env
 
 
 def _f(val, decimals=1):
@@ -67,6 +129,9 @@ def _classify_zone(title, if_actual=None):
 
 def generate_dashboard(upload: bool = False) -> None:
     """Generate the HTML dashboard from template + database."""
+    if not init_config():
+        return
+
     today = date.today()
     now = datetime.now()
 
@@ -76,7 +141,7 @@ def generate_dashboard(upload: bool = False) -> None:
     # ── Core metrics ──
     cur.execute("SELECT ftp_watts, test_date FROM ftp_history ORDER BY test_date DESC LIMIT 1")
     ftp_row = cur.fetchone()
-    ftp = int(ftp_row["ftp_watts"]) if ftp_row else 263
+    ftp = int(ftp_row["ftp_watts"]) if ftp_row else DEFAULT_FTP
 
     cur.execute("SELECT ctl, atl, tsb, date FROM training_load ORDER BY date DESC LIMIT 1")
     load = cur.fetchone()
@@ -132,23 +197,26 @@ def generate_dashboard(upload: bool = False) -> None:
 
     if today_workouts and any(w["tss_planned"] and float(w["tss_planned"]) > 0 for w in today_workouts):
         tw = [w for w in today_workouts if w["tss_planned"] and float(w["tss_planned"]) > 0][0]
+        tw_title = _escape(tw.get("title") or "")
         if tw["completed"]:
-            focus_title = f"Today's Focus: {tw['title']} ✅ Done"
+            focus_title = f"Today's Focus: {tw_title} ✅ Done"
             focus_icon = "✅"
         else:
-            focus_title = f"Today's Focus: {tw['title']}"
+            focus_title = f"Today's Focus: {tw_title}"
             focus_icon = "🚴"
         focus_detail = f"TSS {int(float(tw['tss_planned']))} planned"
         if next_workout and next_workout["date"] != today:
             days_name = next_workout["date"].strftime("%A")
-            focus_detail += f" | Next: {days_name} {next_workout['title']}"
+            next_title = _escape(next_workout.get("title") or "")
+            focus_detail += f" | Next: {days_name} {next_title}"
     else:
         focus_title = "Today's Focus: Rest Day"
         focus_icon = "😴"
         if next_workout:
             days_name = next_workout["date"].strftime("%A")
+            next_title = _escape(next_workout.get("title") or "")
             np_str = f" (TSS {int(float(next_workout['tss_planned']))} planned)" if next_workout["tss_planned"] else ""
-            focus_detail = f"Next workout: {days_name} {next_workout['title']}{np_str}"
+            focus_detail = f"Next workout: {days_name} {next_title}{np_str}"
         else:
             focus_detail = "No upcoming workouts scheduled"
 
@@ -166,6 +234,7 @@ def generate_dashboard(upload: bool = False) -> None:
             for w in day_workouts:
                 if not w["tss_planned"] or float(w["tss_planned"] or 0) == 0:
                     continue
+                title_safe = _escape(w.get("title") or "")
                 if w["completed"]:
                     tss_a = float(w["tss_actual"] or 0)
                     np_a = f"{int(float(w['np_actual']))}W" if w["np_actual"] else "—"
@@ -175,13 +244,13 @@ def generate_dashboard(upload: bool = False) -> None:
                         q_str = f'<span class="badge {badge_class}">{int(q)}</span>'
                     else:
                         q_str = "—"
-                    workout_rows.append(f'            <tr><td>{day_name}</td><td>{w["title"]}</td><td>{tss_a:.1f}</td><td>{np_a}</td><td>{q_str}</td></tr>')
+                    workout_rows.append(f'            <tr><td>{day_name}</td><td>{title_safe}</td><td>{tss_a:.1f}</td><td>{np_a}</td><td>{q_str}</td></tr>')
                 else:
                     tss_p = int(float(w["tss_planned"])) if w["tss_planned"] else "?"
                     if d >= today:
-                        workout_rows.append(f'            <tr style="opacity:0.6"><td>{day_name}</td><td>{w["title"]}</td><td colspan="2" style="color:var(--text-muted)">TSS {tss_p} planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>')
+                        workout_rows.append(f'            <tr style="opacity:0.6"><td>{day_name}</td><td>{title_safe}</td><td colspan="2" style="color:var(--text-muted)">TSS {tss_p} planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>')
                     else:
-                        workout_rows.append(f'            <tr style="opacity:0.5"><td>{day_name}</td><td>{w["title"]}</td><td colspan="2" style="color:var(--text-muted)">Missed (TSS {tss_p})</td><td><span class="badge badge-red">Missed</span></td></tr>')
+                        workout_rows.append(f'            <tr style="opacity:0.5"><td>{day_name}</td><td>{title_safe}</td><td colspan="2" style="color:var(--text-muted)">Missed (TSS {tss_p})</td><td><span class="badge badge-red">Missed</span></td></tr>')
 
     # CTL change this week
     cur.execute("SELECT ctl FROM training_load WHERE date = %s", (monday,))
@@ -534,9 +603,14 @@ def generate_dashboard(upload: bool = False) -> None:
         else:
             break
 
-    insight_recovery = insights_db.get("recovery_correlation",
-        f"Recovery score has minimal impact on workout quality (green: {qual_green}, red: {qual_red}, r={corr_rq:.2f}). "
-        f"You perform consistently regardless of recovery. Based on {n_dp} days.")
+    insight_recovery_db = insights_db.get("recovery_correlation")
+    if insight_recovery_db:
+        insight_recovery = _escape(insight_recovery_db)
+    else:
+        insight_recovery = (
+            f"Recovery score has minimal impact on workout quality (green: {qual_green}, red: {qual_red}, r={corr_rq:.2f}). "
+            f"You perform consistently regardless of recovery. Based on {n_dp} days."
+        )
 
     # HRV insight
     cur.execute("""
@@ -686,7 +760,8 @@ def generate_dashboard(upload: bool = False) -> None:
         ORDER BY date DESC LIMIT 1
     """)
     latest_wk = cur.fetchone()
-    latest_name = latest_wk["title"] if latest_wk else "N/A"
+    latest_name_raw = latest_wk["title"] if latest_wk else "N/A"
+    latest_name = _escape(latest_name_raw)
     latest_quality = float(latest_wk["workout_quality"]) if latest_wk else 0
     latest_date = latest_wk["date"].strftime("%b %d") if latest_wk else "N/A"
 
@@ -821,15 +896,20 @@ def generate_dashboard(upload: bool = False) -> None:
 
     if upload:
         print("📤 Uploading to Fastmail...")
-        result = subprocess.run(
-            ["bash", "-c",
-             'source ~/.openclaw/credentials/fastmail.env && '
-             f'curl -s -u "email@eiwe.me:${{FASTMAIL_FILES_PASSWORD}}" '
-             f'-T {OUTPUT_PATH} '
-             '"https://myfiles.fastmail.com/eiwe.me/cycling-dashboard.html"'],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
+        env = load_env(FASTMAIL_ENV)
+        password = env.get("FASTMAIL_FILES_PASSWORD")
+        user = env.get("FASTMAIL_FILES_USER", FASTMAIL_UPLOAD_USER or "user")
+        if not password:
+            print("❌ Upload failed: FASTMAIL_FILES_PASSWORD not found in fastmail.env")
+            return
+        with OUTPUT_PATH.open("rb") as handle:
+            resp = requests.put(
+                FASTMAIL_UPLOAD_URL,
+                data=handle,
+                auth=(user, password),
+                timeout=30,
+            )
+        if resp.ok:
             print("✅ Uploaded to Fastmail")
         else:
-            print(f"❌ Upload failed: {result.stderr}")
+            print(f"❌ Upload failed: HTTP {resp.status_code} {resp.text.strip()}")
