@@ -2232,6 +2232,9 @@ def main() -> None:
     sub.add_parser("trends", help="Long-term training trends")
     sub.add_parser("insights", help="Generate AI-driven training insights")
 
+    p_dash = sub.add_parser("generate-dashboard", help="Generate HTML dashboard from database")
+    p_dash.add_argument("--upload", action="store_true", help="Upload to Fastmail after generation")
+
     sub.add_parser("race-plan", help="Vatternrundan pacing strategy")
     sub.add_parser("race-weather", help="Weather forecast for Motala (race location)")
     sub.add_parser("taper", help="Taper protocol for Vatternrundan")
@@ -2239,7 +2242,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "sync-whoop":
+    if args.command == "generate-dashboard":
+        from dashboard_generator import generate_dashboard
+        generate_dashboard(upload=args.upload)
+    elif args.command == "sync-whoop":
         sync_whoop(args.days)
     elif args.command == "sync-tp":
         sync_tp(args.days)
