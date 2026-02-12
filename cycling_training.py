@@ -2079,8 +2079,9 @@ def cmd_race_plan():
             clock_h_12 = 12
         print(f"  {stop['name']:>20}  {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm}  {stop['action']}")
 
-    print(f"\n  Dark section: Start through ~mi 30 (03:20-05:00 AM, pre-dawn)")
-    print("  Sunrise ~3:30 AM in June Sweden. Lights mandatory at start.")
+    print(f"\n  Pre-dawn: Start 03:20 AM, sunrise ~03:51 AM. Only ~30 min in the dark.")
+    print("  Lights mandatory at start but you'll have daylight by mile 10.")
+    print("  Sunset ~10:08 PM. 18+ hours of daylight. No night riding.")
     print("  Keep eating from the gun! Don't wait until you're hungry.")
 
     # 2025 race reference
