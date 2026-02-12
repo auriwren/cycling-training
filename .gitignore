@@ -20,6 +20,12 @@ venv/
 *.swp
 *.swo
 
+# Generated output (contains personal data)
+dashboard.html
+
+# Backups
+*.bak
+
 # OS
 .DS_Store
 Thumbs.db

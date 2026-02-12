@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cycling Training Dashboard - Eiwe Lingefors</title>
+<title>Cycling Training Dashboard - __ATHLETE_NAME__</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
@@ -442,8 +442,8 @@ body {
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <h1>Eiwe Lingefors</h1>
-    <div class="subtitle">Training Dashboard &middot; __HEADER_DATE__ &middot; Coach: Max Blinderman</div>
+    <h1>__ATHLETE_NAME__</h1>
+    <div class="subtitle">Training Dashboard &middot; __HEADER_DATE__ &middot; Coach: __COACH_NAME__</div>
   </div>
   <div class="header-stats">
     <div class="countdown-box">
@@ -564,7 +564,7 @@ __WEEK_WORKOUT_ROWS__
         <div class="mini-stat"><div class="val" style="color:var(--red-light)">__ZONE_ANAEROBIC_H__</div><div class="lbl">Anaerobic<br><small>315-393W</small></div></div>
         <div class="mini-stat"><div class="val" style="color:#e879f9">__ZONE_NEUROMUSCULAR_H__</div><div class="lbl">Neuromuscular<br><small>394W+</small></div></div>
       </div>
-      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on __TOTAL_WORKOUTS__ activities with real power data from Strava. Zones mapped from Coach Max (FTP 262W).</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on __TOTAL_WORKOUTS__ activities with real power data from Strava. Zones mapped from __COACH_FIRST__ (FTP 262W).</div>
     </div>
   </div>
 </div>
@@ -738,7 +738,7 @@ __WEEK_WORKOUT_ROWS__
       </table></div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
         <div class="type" style="color:var(--green)">2025 vs 2026 Analysis</div>
-        2025 was ridden solo at IF 0.82 / NP 215W &mdash; quite aggressive for a 10-hour effort. The fact Eiwe finished strong (feeling: 1/great) shows deep endurance capacity. 2026 target of IF ~0.64 is far more disciplined pacing, especially in the first half. With a friend for drafting (20-30% energy savings) and better pacing, sub-10 is very achievable.
+        2025 was ridden solo at IF 0.82 / NP 215W &mdash; quite aggressive for a 10-hour effort. The fact __ATHLETE_FIRST__ finished strong (feeling: 1/great) shows deep endurance capacity. 2026 target of IF ~0.64 is far more disciplined pacing, especially in the first half. With a friend for drafting (20-30% energy savings) and better pacing, sub-10 is very achievable.
       </div>
     </div>
 
@@ -874,7 +874,7 @@ __WEEK_WORKOUT_ROWS__
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">7 / 1</div><div class="lbl">RPE / Feeling</div></div>
       </div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--orange);background:rgba(217,119,6,0.06)">
-        <div class="type" style="color:var(--orange)">Eiwe's 2025 Race Note</div>
+        <div class="type" style="color:var(--orange)">__ATHLETE_FIRST__'s 2025 Race Note</div>
         "20 mph headwinds gusting to 45 mph on the large open fields was rough. Thankfully that headwind turned into a tailwind at the southern end."
       </div>
 
@@ -886,7 +886,7 @@ __WEEK_WORKOUT_ROWS__
       </div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
         <div class="type" style="color:var(--green)">Race Strategy</div>
-        This is the final hard effort before V&auml;tternrundan. Race it hard as a dress rehearsal &mdash; validate fitness, test fueling, and confirm pacing. The 1-week gap to V&auml;tternrundan is perfect: Halvv&auml;ttern doubles as both peak effort and start of taper. Eiwe did exactly this in 2025 with great results.
+        This is the final hard effort before V&auml;tternrundan. Race it hard as a dress rehearsal &mdash; validate fitness, test fueling, and confirm pacing. The 1-week gap to V&auml;tternrundan is perfect: Halvv&auml;ttern doubles as both peak effort and start of taper. __ATHLETE_FIRST__ did exactly this in 2025 with great results.
       </div>
     </div>
   </div>
@@ -907,7 +907,7 @@ __WEEK_WORKOUT_ROWS__
 <!-- This Week and Insights already moved to position #2 above -->
 
 <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
-  Generated __GENERATED_DATE__ &middot; Data from TrainingPeaks + Whoop &middot; Coaching by Max Blinderman
+  Generated __GENERATED_DATE__ &middot; Data from TrainingPeaks + Whoop &middot; Coaching by __COACH_NAME__
   <br><div class="data-freshness"><span class="pulse"></span> Last synced: __GENERATED_DATE__</div>
 </div>
 

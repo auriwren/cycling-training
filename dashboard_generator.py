@@ -13,8 +13,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import psycopg2
 import psycopg2.extras
 
-DB_CONN = "dbname=auri_memory user=openclaw"
-PROJECT_DIR = Path("/home/openclaw/projects/cycling-training")
+DB_CONN = os.environ.get("CT_DB_CONN", "dbname=auri_memory")
+PROJECT_DIR = Path(os.environ.get("CT_PROJECT_DIR", Path(__file__).parent))
+ATHLETE_NAME = os.environ.get("CT_ATHLETE_NAME", "Athlete")
+ATHLETE_FIRST = os.environ.get("CT_ATHLETE_FIRST", ATHLETE_NAME.split()[0])
+COACH_NAME = os.environ.get("CT_COACH_NAME", "Coach")
+COACH_FIRST = os.environ.get("CT_COACH_FIRST", COACH_NAME.split()[0])
 TEMPLATE_PATH = PROJECT_DIR / "dashboard_template.html"
 OUTPUT_PATH = PROJECT_DIR / "dashboard.html"
 
@@ -795,6 +799,10 @@ def generate_dashboard(upload: bool = False) -> None:
         "__PHASE_INDICATOR__": phase,
         "__COACHING_TEXT__": coaching_text,
         "__GENERATED_DATE__": today.strftime("%b %d, %Y"),
+        "__ATHLETE_NAME__": ATHLETE_NAME,
+        "__ATHLETE_FIRST__": ATHLETE_FIRST,
+        "__COACH_NAME__": COACH_NAME,
+        "__COACH_FIRST__": COACH_FIRST,
     }
 
     # ── Fill template ──
