@@ -486,7 +486,7 @@ body {
 </div>
 
 <!-- THIS WEEK (moved to position #2) -->
-<div id="this-week" class="grid" style="margin-bottom:20px">
+<div id="this-week" style="margin-bottom:20px">
   <div class="card">
     <h2><span class="icon">📋</span> This Week (Feb 9-15, 2026)</h2>
     <div class="today-focus">
@@ -501,41 +501,43 @@ body {
       <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">396</div><div class="lbl">TSS Planned</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--green-light)">35%</div><div class="lbl">Progress</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2.7h</div><div class="lbl">Hours Done</div></div>
-    </div>
-    <div class="mini-stats">
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/5</div><div class="lbl">Completed</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">0.69</div><div class="lbl">Avg IF</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--yellow)">62%</div><div class="lbl">Avg Recovery</div></div>
     </div>
 
-    <h3>Workouts</h3>
-    <div class="table-scroll"><table class="segment-table">
-      <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
-      <tbody>
-        <tr><td>Mon</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
-        <tr><td>Tue</td><td>Endurance</td><td>40.5</td><td>149W</td><td><span class="badge badge-yellow">74</span></td></tr>
-        <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
-        <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
-        <tr style="opacity:0.6"><td>Fri</td><td>Endurance</td><td colspan="2" style="color:var(--text-muted)">TSS 54 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
-        <tr style="opacity:0.6"><td>Sat</td><td>Long Ride &ndash; Tempo/SS</td><td colspan="2" style="color:var(--text-muted)">TSS 122 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
-        <tr style="opacity:0.6"><td>Sun</td><td>Free Ride</td><td colspan="2" style="color:var(--text-muted)">TSS 65 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
-      </tbody>
-    </table></div>
-
-    <h3 style="margin-top:16px">PMC Trend</h3>
-    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
-      CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">↑</span><br>
-      ATL: 50.0<br>
-      TSB: -4.0 &mdash; Absorbing load well<br>
-      <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W (0.80 W/week needed)</span>
-    </div>
-
-    <h3 style="margin-top:16px">Recovery This Week</h3>
-    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
-      Avg Recovery: 62% <span class="badge badge-yellow">Yellow</span><br>
-      Avg HRV: 35ms<br>
-      Avg Sleep: 6.8 hrs
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
+      <div>
+        <h3>Workouts</h3>
+        <div class="table-scroll"><table class="segment-table">
+          <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
+          <tbody>
+            <tr><td>Mon</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
+            <tr><td>Tue</td><td>Endurance</td><td>40.5</td><td>149W</td><td><span class="badge badge-yellow">74</span></td></tr>
+            <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
+            <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
+            <tr style="opacity:0.6"><td>Fri</td><td>Endurance</td><td colspan="2" style="color:var(--text-muted)">TSS 54 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+            <tr style="opacity:0.6"><td>Sat</td><td>Long Ride &ndash; Tempo/SS</td><td colspan="2" style="color:var(--text-muted)">TSS 122 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+            <tr style="opacity:0.6"><td>Sun</td><td>Free Ride</td><td colspan="2" style="color:var(--text-muted)">TSS 65 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3>PMC Trend</h3>
+        <div style="font-size:14px;color:var(--text-secondary);line-height:2">
+          CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">&uarr;</span><br>
+          ATL: 50.0<br>
+          TSB: -4.0 &mdash; Absorbing load well<br>
+          <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W</span>
+        </div>
+        <h3 style="margin-top:16px">Recovery This Week</h3>
+        <div style="font-size:14px;color:var(--text-secondary);line-height:2">
+          Avg Recovery: 62% <span class="badge badge-yellow">Yellow</span><br>
+          Avg HRV: 35ms<br>
+          Avg Sleep: 6.8 hrs
+        </div>
+      </div>
     </div>
   </div>
 
@@ -906,29 +908,17 @@ body {
 <div id="coach" class="card" style="margin-bottom:20px">
   <h2><span class="icon">🎯</span> Coaching Assessment</h2>
   <div class="coach-text">
-    <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has climbed from the low 20s in late November to 46.0 as of today, a 100%+ increase in under three months. That is a strong, consistent base-building trajectory. Your average weekly TSS over the last 12 weeks sits at 289, with the last four weeks averaging 407 (excluding the flu week of Jan 5-11). This is exactly the kind of progressive loading we want to see heading into a build phase for a June race. You are ahead of where you were at this point in 2025.</p>
+    <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has doubled from the low 20s in late November to 46.0 today. Average weekly TSS over the last 12 weeks is 289, with the last four weeks averaging 407. Four consecutive weeks above 350 TSS, 100% adherence since mid-January. The flu week (Jan 5-11, TSS 61) was the only dip, and you bounced back immediately. You are ahead of where you were at this point in 2025, with higher volume, better consistency, and stronger weekly loads.</p>
 
-    <p><strong>2026 vs 2025 Comparison:</strong> Looking at the numbers, your 2026 training start is measurably stronger than 2025. In the comparable period last year (Nov-Feb), your weekly TSS was lower and less consistent. This year, you have hit four consecutive weeks above 350 TSS (weeks of Jan 12, Jan 19, Jan 26, Feb 2), with the Feb 2 week at 448 TSS across 6 completed workouts. The flu week (Jan 5-11, TSS 61) was the only dip, and you bounced back immediately the following week with 353 TSS. Your adherence rate since mid-January has been 100% across 4 straight weeks. That consistency is your biggest asset.</p>
+    <p><strong>What the Data Says About You:</strong> Three things stand out. <strong>Consistency</strong>: 75.1% overall completion rate, 100% recently. <strong>Mental toughness</strong>: workout quality on red recovery days (87.3) is virtually identical to green days (88.9). Recovery score correlates at r=0.11 with quality; statistically zero. You execute regardless of how you feel, and the data confirms this works for you. <strong>Quality</strong>: average score 88.5, with your most recent Sweetspot Surges hitting 89.2 on a yellow recovery day.</p>
 
-    <p><strong>Strengths:</strong> Three things stand out. First, <strong>consistency</strong>: 75.1% overall completion rate, climbing to 100% in recent weeks. Second, <strong>mental toughness</strong>: the correlation analysis across 159 days proves what I suspected. Your workout quality on red recovery days (87.3) is virtually identical to green days (88.9). That 1.6-point spread is statistically insignificant. You execute the plan regardless of how you feel, and the data confirms this is the right approach for you. Recovery score correlates at r=0.11 with quality; essentially zero. Third, <strong>workout quality</strong>: your average quality score is 88.5, with your most recent session (Sweetspot Surges, Feb 11) hitting 89.2 on a yellow recovery day. You consistently nail the prescribed intensities.</p>
+    <p><strong>Areas to Watch:</strong> Recovery trending down 10 points over the last month (70% to 60%). Sleep averaging 6.8 hours; target 7.5+ for a 48-year-old in a loading phase. HRV at 34.9ms is stable but not climbing, which would be the ideal signal. None are red flags, but monitor closely as build phase intensity increases.</p>
 
-    <p><strong>Areas to Watch:</strong> Your 7-day average recovery has declined from 70% to 60% over the last month, a 10-point drop. While we have established this does not affect your performance, it may indicate accumulated systemic fatigue. Your average sleep of 6.8 hours is adequate but not optimal for a 48-year-old athlete in a loading phase. Research suggests 7.5+ hours is the target. Your HRV at 34.9ms (7-day avg) is stable but not trending up, which would be the ideal signal during a base phase. None of these are red flags, but they bear monitoring as training load increases through the build phase.</p>
+    <p><strong>Race Readiness:</strong> At 121 days out, you are well-positioned. CTL 46.0 gives a solid platform; we want 55-65 with TSB +15 to +25 on race day. The taper model projects CTL ~61, TSB ~+23. The 2026 pacing strategy (IF 0.64, NP 175-180W) is significantly more disciplined than 2025's aggressive IF 0.82, while the addition of drafting with a riding partner saves 20-30% energy. Your 2025 solo effort at that intensity, finishing strong with feeling of 1/great, confirms the endurance capacity is there. This year you are riding smarter, not just harder.</p>
 
-    <p><strong>Race Readiness for Vatternrundan:</strong> At 121 days out, you are well-positioned. Your CTL of 46.0 gives you a solid platform. For a 315km ultra-endurance event, we want race-day CTL in the 55-65 range with TSB of +15 to +25. Based on your 2025 pre-race training pattern, the taper model projects CTL ~61 with TSB ~+23 on race day. That puts you squarely in the ideal window. The higher NP target of 175-180W (IF ~0.64) shows confidence backed by data, and is a significant step up from the earlier conservative estimates, while still being far more disciplined than 2025's IF 0.82. You should arrive at the start line fresh, fit, and ready to execute.</p>
+    <p><strong>Fueling and Logistics:</strong> Formula 369 at 80-90g carbs/hour with 3 bottles plus gels is solid. Start eating within the first 20 minutes and stay ahead of the deficit all day. Practice this exact protocol on every long training ride. The 03:20 AM start gives you full daylight by mile 10 (sunrise 03:51) and 18+ hours of light. Coordinate stops with your riding partner; the 54-minute total stop budget is realistic for crowded depots.</p>
 
-    <p><strong>Halvv&auml;ttern as Dress Rehearsal:</strong> Racing Halvv&auml;ttern 150km on June 6 &mdash; exactly one week before V&auml;tternrundan &mdash; is the ideal peak effort and fitness validation. Your 2025 Halvv&auml;ttern was exceptional: IF 0.88 and NP 230W in 20 mph headwinds gusting to 45 mph, finishing with RPE 7 and feeling great. That is a seriously strong ride in brutal conditions. With your projected FTP of ~277W this year (vs ~261W in 2025), a target NP of 230-240W (IF 0.83-0.87) is realistic and should yield a faster time. The Halvv&auml;ttern-to-V&auml;tternrundan 1-week gap is perfect: it serves as both a fitness validation and the natural start of taper. You did exactly this pattern in 2025 and arrived at V&auml;tternrundan strong. Race Halvv&auml;ttern hard, then taper for 7 days with easy spins and an opener session on June 10. This is a proven pattern for you.</p>
-
-    <p><strong>Fueling Strategy Update:</strong> The Formula 369 drink mix is a strong choice. The 1:1 glucose-to-fructose ratio at 30g carbs per scoop is well-suited for high carb intake rates, and the 200mg sodium per serving helps with electrolyte replacement over a 10-hour effort. Targeting 80-90g carbs/hour with 3 bottles (2 cage + 1 flexible) plus supplemental gels should get you to the 800-900g total carbs needed. Practice this exact protocol on your long training rides so your gut is adapted by race day. The stop food choices (pickles for sodium, bread for easy carbs, and the hot meal at J&ouml;nk&ouml;ping) are smart for a mid-race reset.</p>
-
-    <p><strong>2025 Race Analysis:</strong> Your 2025 solo effort at IF 0.82 and NP 215W was actually quite aggressive for a 10-hour event. The fact that you finished strong with a feeling of 1/great shows deep endurance capacity and mental toughness. That performance gives us confidence that the 2026 target of 175-180W NP (IF ~0.64) is very achievable. You are essentially planning to ride at 78-84% of last year's intensity, with the added benefit of drafting.</p>
-
-    <p><strong>Riding with a Friend:</strong> This is a significant upgrade over last year's solo effort. Drafting at race pace can save 20-30% energy, which directly translates to fresher legs in the final 50 miles. Beyond the aerodynamics, having a partner for morale during the pre-dawn start and the long middle hours cannot be overstated. Coordinate your stop routine so you move through the four depot stops efficiently together. The 54 minutes of total stop time is realistic for an event with thousands of participants; depot areas get crowded and these estimates account for that.</p>
-
-    <p><strong>Early Morning Start:</strong> The 03:20 AM start means about 30 minutes of pre-dawn riding before sunrise at 03:51 AM. By mile 10 you will have full daylight, and sunset is not until 10:08 PM, giving you 18+ hours of light. No night riding at all. The key is to have your nutrition dialed in from the gun: start eating within the first 20 minutes and stay ahead of the calorie deficit all day. The early start also means you can finish by 1:20 PM and avoid afternoon fatigue.</p>
-
-    <p><strong>FTP 300W Goal Assessment:</strong> Your current FTP of 263W with a target of 300W by year-end requires 0.80W/week, which is achievable for a motivated, consistent athlete with coaching support. The projected 277W at Vatternrundan is realistic and gives you a strong race platform. At 277W, your target NP of 175-180W (63-65% FTP) is more disciplined than 2025 (IF 0.82) while still being a meaningful effort. The estimated TSS of ~411 (IF 0.64 over 9.1 hours of riding plus 54 minutes of stops) is a sustainable load that leaves you strong for the final push. After the race, the summer block through fall will be where the final push to 300W happens.</p>
-
-    <p><strong>Recommendations for the Next 121 Days:</strong> (1) Continue the current base progression through March, targeting 350-400 TSS/week. (2) Transition to build phase in April/May with sweet spot and threshold work; introduce race-specific efforts of 3-4 hours at target race IF (0.64). (3) Practice the Formula 369 fueling protocol on every long ride: 80-90g carbs/hour, same bottles, same mixing ratios. Train your gut now. (4) Prioritize sleep: aim for 7.5+ hours, especially during heavy loading weeks. (5) Schedule a proper FTP test around Feb 26 as planned; this will calibrate all your training zones. (6) Do at least one 150+ mile training ride in April/May with your riding partner to practice drafting, stop coordination, and the full fueling plan. (7) Race Halvv&auml;ttern hard on June 6 as your peak effort, then taper for 7 days: easy spins June 7-9, opener session June 10, rest June 11-12. (8) Practice waking at 2:00 AM and riding in the week before the race so the early start is not a shock.</p>
+    <p><strong>Recommendations:</strong> (1) Continue base progression through March at 350-400 TSS/week. (2) Build phase April/May: sweet spot, threshold, race-specific 3-4 hour efforts at target IF. (3) Practice fueling protocol on every long ride; train the gut now. (4) Prioritize sleep: 7.5+ hours during heavy loading. (5) FTP test ~Feb 26 to calibrate zones. (6) One 150+ mile ride in April/May with your partner to practice everything together. (7) Race Halvv&auml;ttern hard June 6, taper through June 12. (8) Practice the 2 AM wake-up before race week.</p>
 
 
 <!-- ROW 6: Insights + Weekly Summary (moved to top, kept here as anchor) -->
