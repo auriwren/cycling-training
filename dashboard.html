@@ -25,9 +25,9 @@
   --green-dim: #1e5f2e;
   --yellow: #eab308;
   --yellow-dim: #5f4e1e;
-  --orange: #f97316;
+  --orange: #d97706;
   --purple: #a855f7;
-  --cyan: #06b6d4;
+  --cyan: #7dd3fc;
   --accent: #3b82f6;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -94,7 +94,7 @@ body {
 /* Today's Focus */
 .today-focus {
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(6,182,212,0.08));
+  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.06));
   border: 1px solid rgba(59,130,246,0.2);
   border-radius: 10px;
   margin-bottom: 16px;
@@ -173,7 +173,7 @@ body {
 }
 .stat-box.red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.15); }
 .stat-box.green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.15); }
-.stat-box.orange { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.15); }
+.stat-box.orange { background: rgba(217,119,6,0.08); border-color: rgba(249,115,22,0.15); }
 .stat-box .value { font-size: 24px; font-weight: 700; }
 .stat-box .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-box.blue .value { color: var(--blue-light); }
@@ -378,11 +378,64 @@ body {
 @media (max-width: 900px) {
   .grid, .grid-3 { grid-template-columns: 1fr; }
   .header { flex-direction: column; align-items: flex-start; }
-  .header-stats { width: 100%; }
+  .header-stats { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+}
+/* Mobile sticky mini-header */
+.mobile-sticky-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(15,17,23,0.97);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+  justify-content: space-around;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mobile-sticky-header .ms-item { text-align: center; }
+.mobile-sticky-header .ms-val { color: var(--blue-light); font-size: 16px; }
+.mobile-sticky-header .ms-lbl { color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+/* Table scroll wrapper */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 600px) {
+  .mobile-sticky-header { display: flex; }
+  body { padding-top: 52px; }
+  .container { padding: 12px; }
+  .header { padding: 16px; border-radius: 10px; }
+  .header-left h1 { font-size: 22px; }
+  .header-stats { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .stat-box { padding: 6px 8px; min-width: unset; }
+  .stat-box .value { font-size: 18px; }
+  .countdown-box { padding: 8px 12px; }
+  .countdown-box .days { font-size: 24px; }
+  .card { padding: 16px; border-radius: 10px; }
+  .card h2 { font-size: 14px; }
+  .mini-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .segment-table { font-size: 12px; }
+  .segment-table th, .segment-table td { padding: 6px; }
+  .section-nav a { padding: 10px 12px; font-size: 12px; }
+  .recovery-bracket { flex-direction: column; }
+  .chart-container { height: 200px !important; }
+  .chart-container.tall { height: 240px !important; }
+  .grid-3 > div .chart-container { height: 180px !important; }
+  .ftp-timeline { flex-wrap: wrap; }
+  .ftp-marker .ftp-val { font-size: 14px; }
+  .coach-text { font-size: 13px; }
+  .stop-timeline { padding-left: 16px; }
 }
 </style>
 </head>
 <body>
+<div class="mobile-sticky-header">
+  <div class="ms-item"><div class="ms-val">263W</div><div class="ms-lbl">FTP</div></div>
+  <div class="ms-item"><div class="ms-val">46.0</div><div class="ms-lbl">CTL</div></div>
+  <div class="ms-item"><div class="ms-val">114d</div><div class="ms-lbl">Halvvattern</div></div>
+  <div class="ms-item"><div class="ms-val">121d</div><div class="ms-lbl">Vatternrundan</div></div>
+</div>
 <div class="container">
 
 <!-- HEADER -->
@@ -446,17 +499,17 @@ body {
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">138</div><div class="lbl">TSS Actual</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">396</div><div class="lbl">TSS Planned</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--green-light)">35%</div><div class="lbl">Progress</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--cyan)">2.7h</div><div class="lbl">Hours Done</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2.7h</div><div class="lbl">Hours Done</div></div>
     </div>
     <div class="mini-stats">
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/5</div><div class="lbl">Completed</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--purple)">0.69</div><div class="lbl">Avg IF</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">0.69</div><div class="lbl">Avg IF</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--yellow)">62%</div><div class="lbl">Avg Recovery</div></div>
     </div>
 
     <h3>Workouts</h3>
-    <table class="segment-table">
+    <div class="table-scroll"><table class="segment-table">
       <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
       <tbody>
         <tr><td>Mon</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
@@ -467,7 +520,7 @@ body {
         <tr style="opacity:0.6"><td>Sat</td><td>Long Ride &ndash; Tempo/SS</td><td colspan="2" style="color:var(--text-muted)">TSS 122 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
         <tr style="opacity:0.6"><td>Sun</td><td>Free Ride</td><td colspan="2" style="color:var(--text-muted)">TSS 65 planned</td><td><span class="badge" style="background:var(--surface-elevated);color:var(--text-muted)">Upcoming</span></td></tr>
       </tbody>
-    </table>
+    </table></div>
 
     <h3 style="margin-top:16px">PMC Trend</h3>
     <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
@@ -491,8 +544,8 @@ body {
       <div class="type">🟢 Recovery Correlation (High Confidence)</div>
       Recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
     </div>
-    <div class="insight-card" style="border-color:var(--cyan);background:rgba(6,182,212,0.06)">
-      <div class="type" style="color:var(--cyan)">🟡 HRV Threshold (Medium)</div>
+    <div class="insight-card" style="border-color:var(--blue-light);background:rgba(59,130,246,0.06)">
+      <div class="type" style="color:var(--blue-light)">🟡 HRV Threshold (Medium)</div>
       Best workouts (quality &ge;80, n=145) typically occur when HRV is above 31ms. Average HRV on good days: 36ms vs other days: 34ms.
     </div>
     <div class="insight-card" style="border-color:var(--yellow);background:rgba(234,179,8,0.06)">
@@ -503,8 +556,8 @@ body {
       <div class="type" style="color:var(--green)">🟢 Consistency (High Confidence)</div>
       Workout completion rate: 75.1% (163/217 planned workouts). Recent 4-week streak at 100% completion.
     </div>
-    <div class="insight-card" style="border-color:var(--purple);background:rgba(168,85,247,0.06)">
-      <div class="type" style="color:var(--purple)">🟢 FTP Trend (High Confidence)</div>
+    <div class="insight-card" style="border-color:var(--blue-light);background:rgba(59,130,246,0.06)">
+      <div class="type" style="color:var(--blue-light)">🟢 FTP Trend (High Confidence)</div>
       Need 0.80W/week to reach 300W by end of 2026. On track. Projected ~277W at Vatternrundan.
     </div>
   </div>
@@ -522,6 +575,25 @@ body {
     <h2><span class="icon">📈</span> Performance Management Chart</h2>
     <div class="chart-container tall">
       <canvas id="pmcChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Power Zone Distribution -->
+<div class="card" style="margin-bottom:20px">
+  <h2><span class="icon">🎯</span> Power Zone Distribution (by IF)</h2>
+  <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+    <div style="width:240px;height:240px;flex-shrink:0"><canvas id="zoneDonut"></canvas></div>
+    <div style="flex:1;min-width:200px">
+      <div class="mini-stats" style="grid-template-columns:repeat(3,1fr)">
+        <div class="mini-stat"><div class="val" style="color:#94a3b8">5h</div><div class="lbl">Recovery</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">112h</div><div class="lbl">Endurance</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">164h</div><div class="lbl">Tempo</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--yellow)">13h</div><div class="lbl">Sweetspot</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">0h</div><div class="lbl">Threshold</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red)">0h</div><div class="lbl">VO2max</div></div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Based on 191 completed workouts. Classified by Intensity Factor (IF).</div>
     </div>
   </div>
 </div>
@@ -550,7 +622,7 @@ body {
   <div class="mini-stats" style="margin-top:12px">
     <div class="mini-stat"><div class="val" style="color:var(--yellow)">60%</div><div class="lbl">7-Day Avg Recovery</div></div>
     <div class="mini-stat"><div class="val" style="color:var(--blue-light)">34.9ms</div><div class="lbl">7-Day Avg HRV</div></div>
-    <div class="mini-stat"><div class="val" style="color:var(--cyan)">6.9hrs</div><div class="lbl">7-Day Avg Sleep</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--blue-light)">6.9hrs</div><div class="lbl">7-Day Avg Sleep</div></div>
     <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">-10%</div><div class="lbl">Recovery 30d Change</div></div>
   </div>
 </div>
@@ -577,7 +649,7 @@ body {
         <div class="bracket-n">n=74</div>
       </div>
     </div>
-    <div class="finding-box" style="background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.15)">
+    <div class="finding-box" style="background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.15)">
       <span class="emoji">💪</span>
       <span>Only 1.6 point spread across all brackets. Mental toughness confirmed by data.</span>
     </div>
@@ -587,8 +659,8 @@ body {
     <div class="mini-stats">
       <div class="mini-stat"><div class="val" style="color:var(--green-light)">67%</div><div class="lbl">Recovery</div></div>
       <div class="mini-stat"><div class="val" style="color:var(--blue-light)">39ms</div><div class="lbl">HRV</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--cyan)">6.7h</div><div class="lbl">Sleep</div></div>
-      <div class="mini-stat"><div class="val" style="color:var(--purple)">96.5</div><div class="lbl">Avg Quality</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">6.7h</div><div class="lbl">Sleep</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">96.5</div><div class="lbl">Avg Quality</div></div>
     </div>
   </div>
 
@@ -626,23 +698,23 @@ body {
   <div class="grid" style="margin-bottom:0">
     <div>
       <h3>Course Segments &amp; Power Targets</h3>
-      <table class="segment-table">
+      <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Segment</th><th>Distance</th><th>Power @ 277W FTP</th></tr></thead>
         <tbody>
           <tr><td>First 100 km</td><td>0-62 mi</td><td>155-170W (56-61%)</td></tr>
           <tr><td>Km 100-230</td><td>62-143 mi</td><td>170-180W (61-65%)</td></tr>
           <tr><td>Km 230-315</td><td>143-196 mi</td><td>180-195W (65-70%)</td></tr>
         </tbody>
-      </table>
+      </table></div>
       <div class="mini-stats" style="margin-top:12px">
         <div class="mini-stat"><div class="val" style="color:var(--blue-light)">175-180W</div><div class="lbl">Target NP</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--red-light)">208W</div><div class="lbl">Climb Cap (75%)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--cyan)">~411</div><div class="lbl">Est. TSS</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~411</div><div class="lbl">Est. TSS</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">IF 0.64</div><div class="lbl">Target IF</div></div>
       </div>
 
       <h3 style="margin-top:16px">2025 Race Comparison</h3>
-      <table class="segment-table">
+      <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Metric</th><th>2025 (Solo)</th><th>2026 Target</th></tr></thead>
         <tbody>
           <tr><td>Time</td><td>10h09m</td><td>&lt;10h00m</td></tr>
@@ -653,7 +725,7 @@ body {
           <tr><td>Start</td><td>Morning</td><td>03:20 AM</td></tr>
           <tr><td>Style</td><td>Solo, pushed hard</td><td>With friend (drafting + morale)</td></tr>
         </tbody>
-      </table>
+      </table></div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
         <div class="type" style="color:var(--green)">2025 vs 2026 Analysis</div>
         2025 was ridden solo at IF 0.82 / NP 215W &mdash; quite aggressive for a 10-hour effort. The fact Eiwe finished strong (feeling: 1/great) shows deep endurance capacity. 2026 target of IF ~0.64 is far more disciplined pacing, especially in the first half. With a friend for drafting (20-30% energy savings) and better pacing, sub-10 is very achievable.
@@ -683,12 +755,12 @@ body {
       <div style="padding:8px 14px;background:rgba(234,179,8,0.08);border-radius:8px;margin-top:8px;font-size:12px;color:var(--text-secondary)">
         <strong style="color:var(--yellow)">Note:</strong> Thousands of participants means depot stops take time. These are realistic estimates.
       </div>
-      <div style="padding:10px 14px;background:rgba(249,115,22,0.08);border-radius:8px;margin-top:12px;font-size:12px;color:var(--text-secondary)">
+      <div style="padding:10px 14px;background:rgba(217,119,6,0.08);border-radius:8px;margin-top:12px;font-size:12px;color:var(--text-secondary)">
         <strong style="color:var(--orange)">Primary Fuel: Formula 369</strong> &mdash; 30g carbs/scoop, 1:1 glucose:fructose, 200mg sodium. 3 bottles (2 cage + 1 flexible rubber). Mix 2-3 scoops/bottle (60-90g carbs). Target: <strong style="color:var(--text-primary)">80-90g carbs/hour</strong>. Supplemental gels between bottles as needed. Pre-dawn start: 03:20 AM, sunrise 03:51 AM. Only ~30 min of darkness. No night riding..
       </div>
 
       <h3 style="margin-top:16px">Hourly Fueling Timeline</h3>
-      <table class="segment-table">
+      <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Hour</th><th>Clock Time</th><th>Fueling Plan</th><th>Carbs</th></tr></thead>
         <tbody>
           <tr><td>1</td><td>03:20-04:20</td><td>1 bottle F369 + start eating early</td><td>60-90g</td></tr>
@@ -699,10 +771,10 @@ body {
           <tr><td>9-10</td><td>11:20-13:20</td><td><strong>Stop 4 at 12:32 PM</strong>, last refill, final push</td><td>160-180g</td></tr>
           <tr style="background:rgba(34,197,94,0.08)"><td colspan="3"><strong>Total Target (10 hours)</strong></td><td><strong>800-900g (7,000+ cal)</strong></td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <h3 style="margin-top:16px">Taper Timeline</h3>
-      <table class="segment-table">
+      <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Date</th><th>Phase</th><th>Days Out</th></tr></thead>
         <tbody>
           <tr><td>May 1</td><td>Build phase starts</td><td>78</td></tr>
@@ -713,12 +785,12 @@ body {
           <tr><td>Jun 11-12</td><td>Easy spin + prep</td><td>1-2</td></tr>
           <tr><td>Jun 13</td><td><span class="badge badge-green">🏁 VATTERNRUNDAN (03:20 AM)</span></td><td>0</td></tr>
         </tbody>
-      </table>
+      </table></div>
       <div class="mini-stats" style="margin-top:12px">
         <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~61</div><div class="lbl">Proj. Race CTL</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">+23</div><div class="lbl">Proj. Race TSB</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--orange)">~54 min</div><div class="lbl">Total Stop Time</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--cyan)">~10h total</div><div class="lbl">9.1h ride + stops</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~10h total</div><div class="lbl">9.1h ride + stops</div></div>
       </div>
     </div>
   </div>
@@ -776,7 +848,7 @@ body {
       <h3>2025 Halvv&auml;ttern Performance (June 7, 2025)</h3>
       <div class="mini-stats">
         <div class="mini-stat"><div class="val" style="color:var(--blue-light)">4h49m</div><div class="lbl">Time</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--cyan)">92.3 mi</div><div class="lbl">Distance</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">92.3 mi</div><div class="lbl">Distance</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--orange)">372</div><div class="lbl">TSS</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--red-light)">0.88</div><div class="lbl">IF</div></div>
       </div>
@@ -787,11 +859,11 @@ body {
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">86</div><div class="lbl">Cadence</div></div>
       </div>
       <div class="mini-stats">
-        <div class="mini-stat"><div class="val" style="color:var(--purple)">2,628 ft</div><div class="lbl">Elevation</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2,628 ft</div><div class="lbl">Elevation</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--yellow)">3,670</div><div class="lbl">Calories</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">7 / 1</div><div class="lbl">RPE / Feeling</div></div>
       </div>
-      <div class="insight-card" style="margin-top:12px;border-color:var(--orange);background:rgba(249,115,22,0.06)">
+      <div class="insight-card" style="margin-top:12px;border-color:var(--orange);background:rgba(217,119,6,0.06)">
         <div class="type" style="color:var(--orange)">Eiwe's 2025 Race Note</div>
         "20 mph headwinds gusting to 45 mph on the large open fields was rough. Thankfully that headwind turned into a tailwind at the southern end."
       </div>
@@ -799,7 +871,7 @@ body {
       <h3 style="margin-top:16px">2026 Targets (@ ~277W FTP)</h3>
       <div class="mini-stats">
         <div class="mini-stat"><div class="val" style="color:var(--blue-light)">230-240W</div><div class="lbl">Target NP</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--cyan)">IF 0.83-0.87</div><div class="lbl">Target IF</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">IF 0.83-0.87</div><div class="lbl">Target IF</div></div>
         <div class="mini-stat"><div class="val" style="color:var(--green-light)">&lt;4h49m</div><div class="lbl">Time Goal</div></div>
       </div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
@@ -813,18 +885,7 @@ body {
 <!-- ROW 5: Coach Analysis -->
 </div></div>
 <div id="coach" class="card" style="margin-bottom:20px">
-  <h2 class="collapsible-header" onclick="toggleSection(this)"><span><span class="icon">🎯</span> Coaching Assessment</span><span class="toggle-icon">▸</span></h2>
-  <div style="margin:12px 0">
-    <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
-      <strong>Key Takeaways:</strong>
-      <ul style="margin:8px 0 0 16px;line-height:2">
-        <li>CTL up 100%+ in 3 months (20s → 46). Training load progression is on track for June race. 4 consecutive weeks above 350 TSS.</li>
-        <li>Mental toughness confirmed by data: only 1.6-point quality spread across recovery brackets (r=0.11). Execute the plan regardless of Whoop color.</li>
-        <li>Race-day projections look strong: CTL ~61, TSB ~+23. Sub-10h Vatternrundan is very achievable with disciplined pacing (IF 0.64) and drafting.</li>
-      </ul>
-    </div>
-  </div>
-  <div class="collapsible-content">
+  <h2><span class="icon">🎯</span> Coaching Assessment</h2>
   <div class="coach-text">
     <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has climbed from the low 20s in late November to 46.0 as of today, a 100%+ increase in under three months. That is a strong, consistent base-building trajectory. Your average weekly TSS over the last 12 weeks sits at 289, with the last four weeks averaging 407 (excluding the flu week of Jan 5-11). This is exactly the kind of progressive loading we want to see heading into a build phase for a June race. You are ahead of where you were at this point in 2025.</p>
 
@@ -849,8 +910,7 @@ body {
     <p><strong>FTP 300W Goal Assessment:</strong> Your current FTP of 263W with a target of 300W by year-end requires 0.80W/week, which is achievable for a motivated, consistent athlete with coaching support. The projected 277W at Vatternrundan is realistic and gives you a strong race platform. At 277W, your target NP of 175-180W (63-65% FTP) is more disciplined than 2025 (IF 0.82) while still being a meaningful effort. The estimated TSS of ~411 (IF 0.64 over 9.1 hours of riding plus 54 minutes of stops) is a sustainable load that leaves you strong for the final push. After the race, the summer block through fall will be where the final push to 300W happens.</p>
 
     <p><strong>Recommendations for the Next 121 Days:</strong> (1) Continue the current base progression through March, targeting 350-400 TSS/week. (2) Transition to build phase in April/May with sweet spot and threshold work; introduce race-specific efforts of 3-4 hours at target race IF (0.64). (3) Practice the Formula 369 fueling protocol on every long ride: 80-90g carbs/hour, same bottles, same mixing ratios. Train your gut now. (4) Prioritize sleep: aim for 7.5+ hours, especially during heavy loading weeks. (5) Schedule a proper FTP test around Feb 26 as planned; this will calibrate all your training zones. (6) Do at least one 150+ mile training ride in April/May with your riding partner to practice drafting, stop coordination, and the full fueling plan. (7) Race Halvv&auml;ttern hard on June 6 as your peak effort, then taper for 7 days: easy spins June 7-9, opener session June 10, rest June 11-12. (8) Practice waking at 2:00 AM and riding in the week before the race so the early start is not a shock.</p>
-  </div>
-</div>
+
 
 <!-- ROW 6: Insights + Weekly Summary (moved to top, kept here as anchor) -->
 </div></div>
@@ -1095,7 +1155,7 @@ new Chart(document.getElementById('sleepChart'), {
     labels:sleep30.map(d=>d.d),
     datasets:[{
       data:sleep30.map(d=>d.s),
-      backgroundColor:sleep30.map(d=>d.s>=7.5?'rgba(6,182,212,0.6)':d.s>=6?'rgba(6,182,212,0.35)':'rgba(239,68,68,0.4)'),
+      backgroundColor:sleep30.map(d=>d.s>=7.5?'rgba(96,165,250,0.6)':d.s>=6?'rgba(96,165,250,0.35)':'rgba(239,68,68,0.4)'),
       borderRadius:2,
     }]
   },
@@ -1113,9 +1173,9 @@ new Chart(document.getElementById('qualityChart'), {
     labels:qualityData.map(d=>d.d),
     datasets:[{
       data:qualityData.map(d=>d.q),
-      borderColor:'#a855f7',
-      backgroundColor:'rgba(168,85,247,0.1)',
-      fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'#a855f7'
+      borderColor:'#60a5fa',
+      backgroundColor:'rgba(96,165,250,0.1)',
+      fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'#60a5fa'
     }]
   },
   options:{
@@ -1124,6 +1184,35 @@ new Chart(document.getElementById('qualityChart'), {
     scales:{x:{ticks:{maxRotation:45,font:{size:8},maxTicksLimit:12},grid:{display:false}},y:{min:60,max:100,title:{display:true,text:'Quality Score'}}}
   }
 });
+
+// Zone Distribution Donut
+new Chart(document.getElementById('zoneDonut'), {
+  type:'doughnut',
+  data:{
+    labels:['Recovery','Endurance','Tempo','Sweetspot','Threshold','VO2max'],
+    datasets:[{
+      data:[300,6714,9828,750,0,0],
+      backgroundColor:['#94a3b8','#60a5fa','#4ade80','#eab308','#f87171','#ef4444'],
+      borderColor:'#1a1d27',borderWidth:2,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:true,
+    cutout:'60%',
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>{const total=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=total?((ctx.raw/total)*100).toFixed(1):0;return `${ctx.label}: ${Math.round(ctx.raw/60)}h (${pct}%)`;}}}
+    }
+  }
+});
+
+// Mobile: reduce chart tick density
+if(window.innerWidth <= 600) {
+  Chart.defaults.scales.x = Chart.defaults.scales.x || {};
+  Chart.defaults.plugins.legend.labels.font = {size: 9};
+}
+const isMobile = window.innerWidth <= 600;
+const mobileMaxTicks = isMobile ? 6 : undefined;
 
 // FTP Projection Chart
 const ftpMonths = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
