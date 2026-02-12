@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycling Training Dashboard - Eiwe Lingefors</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg-primary: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-card-alt: #1e2130;
+  --border: #2a2d3a;
+  --text-primary: #e8eaf0;
+  --text-secondary: #9ca3b4;
+  --text-muted: #6b7280;
+  --blue: #3b82f6;
+  --blue-light: #60a5fa;
+  --blue-dim: #1e3a5f;
+  --red: #ef4444;
+  --red-light: #f87171;
+  --red-dim: #5f1e1e;
+  --green: #22c55e;
+  --green-light: #4ade80;
+  --green-dim: #1e5f2e;
+  --yellow: #eab308;
+  --yellow-dim: #5f4e1e;
+  --orange: #f97316;
+  --purple: #a855f7;
+  --cyan: #06b6d4;
+  --accent: #3b82f6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.header {
+  background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.header-left h1 {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--blue-light), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.header-left .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+.header-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.stat-box {
+  text-align: center;
+  padding: 8px 16px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.15);
+  border-radius: 10px;
+  min-width: 90px;
+}
+.stat-box.red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.15); }
+.stat-box.green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.15); }
+.stat-box.orange { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.15); }
+.stat-box .value { font-size: 24px; font-weight: 700; }
+.stat-box .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-box.blue .value { color: var(--blue-light); }
+.stat-box.red .value { color: var(--red-light); }
+.stat-box.green .value { color: var(--green-light); }
+.stat-box.orange .value { color: var(--orange); }
+.countdown-box {
+  text-align: center;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(6,182,212,0.12));
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 12px;
+}
+.countdown-box .days { font-size: 36px; font-weight: 800; color: var(--cyan); }
+.countdown-box .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.grid-full { grid-column: 1 / -1; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  overflow: hidden;
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card h2 .icon { font-size: 18px; }
+.card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+  color: var(--text-secondary);
+}
+.chart-container { position: relative; height: 280px; }
+.chart-container.tall { height: 320px; }
+.mini-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.mini-stat {
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  text-align: center;
+}
+.mini-stat .val { font-size: 20px; font-weight: 700; }
+.mini-stat .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+.insight-card {
+  padding: 14px 16px;
+  background: rgba(59,130,246,0.06);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.insight-card .type { font-weight: 600; color: var(--blue-light); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.segment-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.segment-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.segment-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(42,45,58,0.5);
+  color: var(--text-primary);
+}
+.segment-table tr:hover td { background: rgba(255,255,255,0.02); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-green { background: var(--green-dim); color: var(--green-light); }
+.badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+.badge-red { background: var(--red-dim); color: var(--red-light); }
+.badge-blue { background: var(--blue-dim); color: var(--blue-light); }
+.coach-text {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+.coach-text p { margin-bottom: 16px; }
+.coach-text strong { color: var(--text-primary); }
+.finding-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(34,197,94,0.06);
+  border: 1px solid rgba(34,197,94,0.15);
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.finding-box .emoji { font-size: 20px; }
+.recovery-bracket {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+}
+.bracket {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+.bracket.red-b { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); }
+.bracket.yellow-b { background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2); }
+.bracket.green-b { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); }
+.bracket .bracket-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+.bracket .bracket-value { font-size: 22px; font-weight: 700; margin: 4px 0; }
+.bracket .bracket-n { font-size: 11px; color: var(--text-muted); }
+.phase-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.phase-base { background: rgba(59,130,246,0.15); color: var(--blue-light); }
+.stop-timeline {
+  position: relative;
+  padding-left: 24px;
+  border-left: 2px solid var(--border);
+}
+.stop-item {
+  position: relative;
+  padding: 10px 0 10px 16px;
+}
+.stop-item::before {
+  content: '';
+  position: absolute;
+  left: -29px;
+  top: 16px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--bg-card);
+}
+.stop-item.hot::before { background: var(--orange); }
+.stop-item .stop-name { font-weight: 600; font-size: 14px; }
+.stop-item .stop-detail { font-size: 12px; color: var(--text-secondary); }
+.weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.ftp-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 16px 0;
+  position: relative;
+}
+.ftp-marker {
+  text-align: center;
+  flex: 1;
+  position: relative;
+  padding-top: 24px;
+}
+.ftp-marker::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--cyan));
+}
+.ftp-marker .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  margin: 0 auto 6px;
+  position: relative;
+  z-index: 1;
+}
+.ftp-marker .ftp-val { font-size: 18px; font-weight: 700; color: var(--blue-light); }
+.ftp-marker .ftp-date { font-size: 11px; color: var(--text-muted); }
+@media (max-width: 900px) {
+  .grid, .grid-3 { grid-template-columns: 1fr; }
+  .header { flex-direction: column; align-items: flex-start; }
+  .header-stats { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>Eiwe Lingefors</h1>
+    <div class="subtitle">Training Dashboard &middot; Feb 12, 2026 &middot; Coach: Max Blinderman</div>
+  </div>
+  <div class="header-stats">
+    <div class="countdown-box">
+      <div class="days">120</div>
+      <div class="label">Days to Vatternrundan</div>
+    </div>
+    <div class="stat-box blue">
+      <div class="value">263W</div>
+      <div class="label">FTP</div>
+    </div>
+    <div class="stat-box blue">
+      <div class="value">46.0</div>
+      <div class="label">CTL (Fitness)</div>
+    </div>
+    <div class="stat-box red">
+      <div class="value">50.0</div>
+      <div class="label">ATL (Fatigue)</div>
+    </div>
+    <div class="stat-box green">
+      <div class="value">-4.0</div>
+      <div class="label">TSB (Form)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 1: Training Load + PMC -->
+<div class="grid">
+  <div class="card">
+    <h2><span class="icon">📊</span> Weekly Training Load (12 Months)</h2>
+    <div class="chart-container tall">
+      <canvas id="tssChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <h2><span class="icon">📈</span> Performance Management Chart</h2>
+    <div class="chart-container tall">
+      <canvas id="pmcChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 2: Recovery Dashboard -->
+<div class="card" style="margin-bottom:20px">
+  <h2><span class="icon">💚</span> Recovery Dashboard (30 Days)</h2>
+  <div class="finding-box">
+    <span class="emoji">🔬</span>
+    <span><strong>Key Finding:</strong> Recovery score has minimal impact on workout quality (r=0.11). Eiwe performs consistently regardless of Whoop recovery color. Based on 159 days of data.</span>
+  </div>
+  <div class="grid-3" style="margin-bottom:0">
+    <div>
+      <h3>Recovery Score</h3>
+      <div class="chart-container" style="height:200px"><canvas id="recoveryChart"></canvas></div>
+    </div>
+    <div>
+      <h3>HRV Trend (7-day avg)</h3>
+      <div class="chart-container" style="height:200px"><canvas id="hrvChart"></canvas></div>
+    </div>
+    <div>
+      <h3>Sleep Hours</h3>
+      <div class="chart-container" style="height:200px"><canvas id="sleepChart"></canvas></div>
+    </div>
+  </div>
+  <div class="mini-stats" style="margin-top:12px">
+    <div class="mini-stat"><div class="val" style="color:var(--yellow)">60%</div><div class="lbl">7-Day Avg Recovery</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--blue-light)">34.9ms</div><div class="lbl">7-Day Avg HRV</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--cyan)">6.9hrs</div><div class="lbl">7-Day Avg Sleep</div></div>
+    <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">-10%</div><div class="lbl">Recovery 30d Change</div></div>
+  </div>
+</div>
+
+<!-- ROW 3: Workout Quality + FTP -->
+<div class="grid">
+  <div class="card">
+    <h2><span class="icon">🏋️</span> Workout Quality Analysis</h2>
+    <h3>Quality by Recovery Bracket</h3>
+    <div class="recovery-bracket">
+      <div class="bracket red-b">
+        <div class="bracket-label">Red (&lt;33%)</div>
+        <div class="bracket-value" style="color:var(--red-light)">87.3</div>
+        <div class="bracket-n">n=8</div>
+      </div>
+      <div class="bracket yellow-b">
+        <div class="bracket-label">Yellow (33-66%)</div>
+        <div class="bracket-value" style="color:var(--yellow)">88.0</div>
+        <div class="bracket-n">n=77</div>
+      </div>
+      <div class="bracket green-b">
+        <div class="bracket-label">Green (&gt;66%)</div>
+        <div class="bracket-value" style="color:var(--green-light)">88.9</div>
+        <div class="bracket-n">n=74</div>
+      </div>
+    </div>
+    <div class="finding-box" style="background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.15)">
+      <span class="emoji">💪</span>
+      <span>Only 1.6 point spread across all brackets. Mental toughness confirmed by data.</span>
+    </div>
+    <h3>Quality Over Time</h3>
+    <div class="chart-container" style="height:180px"><canvas id="qualityChart"></canvas></div>
+    <h3 style="margin-top:12px">Best Workout Conditions (Top 20)</h3>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">67%</div><div class="lbl">Recovery</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">39ms</div><div class="lbl">HRV</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--cyan)">6.7h</div><div class="lbl">Sleep</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--purple)">96.5</div><div class="lbl">Avg Quality</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">⚡</span> FTP Trajectory</h2>
+    <div class="ftp-timeline">
+      <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">263W</div><div class="ftp-date">Now (Feb 12)</div></div>
+      <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">~265W</div><div class="ftp-date">Next Test (Feb 26)</div></div>
+      <div class="ftp-marker"><div class="dot"></div><div class="ftp-val">~277W</div><div class="ftp-date">Vatternrundan (Jun 12)</div></div>
+      <div class="ftp-marker"><div class="dot" style="background:var(--green-light)"></div><div class="ftp-val" style="color:var(--green-light)">300W</div><div class="ftp-date">Target (Dec 31)</div></div>
+    </div>
+    <div class="mini-stats" style="margin-top:20px">
+      <div class="mini-stat"><div class="val" style="color:var(--orange)">37W</div><div class="lbl">Gap to 300W</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">0.80</div><div class="lbl">W/Week Needed</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">46</div><div class="lbl">Weeks Left</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">✓</div><div class="lbl">On Track</div></div>
+    </div>
+    <h3>FTP Projection</h3>
+    <div class="chart-container" style="height:200px"><canvas id="ftpChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 4: Race Plan -->
+<div class="card" style="margin-bottom:20px">
+  <h2><span class="icon">🏁</span> Vatternrundan Race Plan &mdash; June 12, 2026</h2>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <span class="badge badge-blue">315 km / 196 mi</span>
+    <span class="badge badge-green">Target: Sub-10 Hours</span>
+    <span class="badge badge-yellow">4 Rest Stops Max</span>
+    <span class="phase-indicator phase-base">🔵 Current Phase: BASE</span>
+  </div>
+
+  <div class="grid" style="margin-bottom:0">
+    <div>
+      <h3>Course Segments &amp; Power Targets</h3>
+      <table class="segment-table">
+        <thead><tr><th>Segment</th><th>Distance</th><th>Terrain</th><th>Power @ 277W FTP</th></tr></thead>
+        <tbody>
+          <tr><td>Motala &rarr; Karlsborg</td><td>0-31 mi</td><td>Rolling</td><td>158-166W (57-60%)</td></tr>
+          <tr><td>Karlsborg &rarr; Hjo</td><td>31-75 mi</td><td>Hills</td><td>158-166W (57-60%)</td></tr>
+          <tr><td>Hjo &rarr; Jonkoping</td><td>75-106 mi</td><td>Exposed/Wind</td><td>166-180W (60-65%)</td></tr>
+          <tr><td>Jonkoping &rarr; Granna</td><td>106-144 mi</td><td>Climbing</td><td>166-180W (60-65%)</td></tr>
+          <tr><td>Granna &rarr; Motala</td><td>144-196 mi</td><td>Mixed</td><td>180-194W (65-70%)</td></tr>
+        </tbody>
+      </table>
+      <div class="mini-stats" style="margin-top:12px">
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">152-175W</div><div class="lbl">Target NP Range</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">199W</div><div class="lbl">Climb Cap (72%)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--cyan)">~348</div><div class="lbl">Est. TSS</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">IF 0.59</div><div class="lbl">Target IF</div></div>
+      </div>
+
+      <h3 style="margin-top:16px">2025 Race Comparison</h3>
+      <table class="segment-table">
+        <thead><tr><th>Metric</th><th>2025 (Solo)</th><th>2026 Target</th></tr></thead>
+        <tbody>
+          <tr><td>Time</td><td>10h09m</td><td>&lt;10h00m</td></tr>
+          <tr><td>NP</td><td>215W</td><td>~166W (conserv.)</td></tr>
+          <tr><td>IF</td><td>0.82</td><td>~0.59</td></tr>
+          <tr><td>TSS</td><td>682</td><td>~348</td></tr>
+          <tr><td>Avg HR</td><td>142</td><td>TBD</td></tr>
+          <tr><td>Style</td><td>Solo, pushed hard</td><td>With friend, controlled</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <h3>Fueling Strategy (4 Stops)</h3>
+      <div class="stop-timeline">
+        <div class="stop-item">
+          <div class="stop-name">Stop 1 &mdash; Mile 50 (~2h32m)</div>
+          <div class="stop-detail">Quick fuel + bottles. 3-5 min max. Gels, bars, electrolytes.</div>
+        </div>
+        <div class="stop-item hot">
+          <div class="stop-name">🍽️ Jonkoping &mdash; Mile 106 (~5h23m)</div>
+          <div class="stop-detail">Hot food stop. Refuel properly. 10-15 min. Soup, pasta, coffee.</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">Stop 3 &mdash; Mile 149 (~7h37m)</div>
+          <div class="stop-detail">Quick fuel + bottles. Night section. 3-5 min. Lights on.</div>
+        </div>
+        <div class="stop-item">
+          <div class="stop-name">Stop 4 &mdash; Mile 180 (~9h12m)</div>
+          <div class="stop-detail">Last fuel. Quick in/out. Push to finish. Caffeine gel.</div>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:rgba(249,115,22,0.08);border-radius:8px;margin-top:12px;font-size:12px;color:var(--text-secondary)">
+        <strong style="color:var(--orange)">Fueling:</strong> 60-90g carbs/hour from start. 16-24 oz fluid/hour. Keep eating through the night section (mi 93-174). Appetite drops but fueling is critical.
+      </div>
+
+      <h3 style="margin-top:16px">Taper Timeline</h3>
+      <table class="segment-table">
+        <thead><tr><th>Date</th><th>Phase</th><th>Days Out</th></tr></thead>
+        <tbody>
+          <tr><td>May 1</td><td>Build phase starts</td><td>78</td></tr>
+          <tr><td>May 22</td><td>Peak week</td><td>99</td></tr>
+          <tr><td>May 29</td><td><span class="badge badge-yellow">Taper begins</span></td><td>106</td></tr>
+          <tr><td>Jun 5</td><td>Final taper week</td><td>113</td></tr>
+          <tr><td>Jun 9</td><td>Opener session</td><td>117</td></tr>
+          <tr><td>Jun 11</td><td>Easy spin + prep</td><td>119</td></tr>
+          <tr><td>Jun 12</td><td><span class="badge badge-green">🏁 RACE DAY</span></td><td>120</td></tr>
+        </tbody>
+      </table>
+      <div class="mini-stats" style="margin-top:12px">
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~40</div><div class="lbl">Proj. Race CTL</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">+14.6</div><div class="lbl">Proj. Race TSB</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 5: Coach Analysis -->
+<div class="card" style="margin-bottom:20px">
+  <h2><span class="icon">🎯</span> Coaching Assessment</h2>
+  <div class="coach-text">
+    <p><strong>Current Fitness Trajectory:</strong> Eiwe, your CTL has climbed from the low 20s in late November to 46.0 as of today, a 100%+ increase in under three months. That is a strong, consistent base-building trajectory. Your average weekly TSS over the last 12 weeks sits at 289, with the last four weeks averaging 407 (excluding the flu week of Jan 5-11). This is exactly the kind of progressive loading we want to see heading into a build phase for a June race. You are ahead of where you were at this point in 2025.</p>
+
+    <p><strong>2026 vs 2025 Comparison:</strong> Looking at the numbers, your 2026 training start is measurably stronger than 2025. In the comparable period last year (Nov-Feb), your weekly TSS was lower and less consistent. This year, you have hit four consecutive weeks above 350 TSS (weeks of Jan 12, Jan 19, Jan 26, Feb 2), with the Feb 2 week at 448 TSS across 6 completed workouts. The flu week (Jan 5-11, TSS 61) was the only dip, and you bounced back immediately the following week with 353 TSS. Your adherence rate since mid-January has been 100% across 4 straight weeks. That consistency is your biggest asset.</p>
+
+    <p><strong>Strengths:</strong> Three things stand out. First, <strong>consistency</strong>: 75.1% overall completion rate, climbing to 100% in recent weeks. Second, <strong>mental toughness</strong>: the correlation analysis across 159 days proves what I suspected. Your workout quality on red recovery days (87.3) is virtually identical to green days (88.9). That 1.6-point spread is statistically insignificant. You execute the plan regardless of how you feel, and the data confirms this is the right approach for you. Recovery score correlates at r=0.11 with quality; essentially zero. Third, <strong>workout quality</strong>: your average quality score is 88.5, with your most recent session (Sweetspot Surges, Feb 11) hitting 89.2 on a yellow recovery day. You consistently nail the prescribed intensities.</p>
+
+    <p><strong>Areas to Watch:</strong> Your 7-day average recovery has declined from 70% to 60% over the last month, a 10-point drop. While we have established this does not affect your performance, it may indicate accumulated systemic fatigue. Your average sleep of 6.8 hours is adequate but not optimal for a 48-year-old athlete in a loading phase. Research suggests 7.5+ hours is the target. Your HRV at 34.9ms (7-day avg) is stable but not trending up, which would be the ideal signal during a base phase. None of these are red flags, but they bear monitoring as training load increases through the build phase.</p>
+
+    <p><strong>Race Readiness for Vatternrundan:</strong> At 120 days out, you are well-positioned. Your CTL of 46.0 gives you a solid platform. For a 315km ultra-endurance event, we want race-day CTL in the 55-65 range with TSB of +15 to +25. The current projection shows CTL ~40 at race day with TSB +14.6, which is slightly below target on both counts. This means the build phase (May-June) needs to push CTL higher before the taper. The good news: you have 17 weeks to build, which is plenty of time. If you average 400+ TSS per week through the build phase, you should arrive at the start line with CTL near 60.</p>
+
+    <p><strong>FTP 300W Goal Assessment:</strong> Your current FTP of 263W with a target of 300W by year-end requires 0.80W/week, which is achievable for a motivated, consistent athlete with coaching support. The projected 277W at Vatternrundan is realistic and gives you a strong race platform. At 277W, your target NP of 152-175W (55-63% FTP) means you can ride the event more conservatively than 2025 (where you rode at IF 0.82, which is aggressive for 10+ hours). With a projected IF of 0.59, you should finish fresher and faster. After the race, the summer block through fall will be where the final push to 300W happens.</p>
+
+    <p><strong>Recommendations for the Next 120 Days:</strong> (1) Continue the current base progression through March, targeting 350-400 TSS/week. (2) Transition to build phase in April/May with sweet spot and threshold work; introduce race-specific efforts of 3-4 hours at target race IF (0.59). (3) Practice your fueling strategy on long rides (60-90g carbs/hour). (4) Prioritize sleep: aim for 7.5+ hours, especially during heavy loading weeks. (5) Schedule a proper FTP test around Feb 26 as planned; this will calibrate all your training zones. (6) Do at least one 150+ mile training ride in April/May to practice the mental and physical demands. (7) The taper starting May 29 should be followed precisely: -30% volume week -2, -50% week -1, with an opener session June 9.</p>
+  </div>
+</div>
+
+<!-- ROW 6: Insights + Weekly Summary -->
+<div class="grid">
+  <div class="card">
+    <h2><span class="icon">💡</span> Key Insights</h2>
+    <div class="insight-card">
+      <div class="type">🟢 Recovery Correlation (High Confidence)</div>
+      Recovery score has minimal impact on workout quality (green: 88.9, red: 87.3, r=0.11). You perform consistently regardless of recovery. Based on 159 days.
+    </div>
+    <div class="insight-card" style="border-color:var(--cyan);background:rgba(6,182,212,0.06)">
+      <div class="type" style="color:var(--cyan)">🟡 HRV Threshold (Medium)</div>
+      Best workouts (quality &ge;80, n=145) typically occur when HRV is above 31ms. Average HRV on good days: 36ms vs other days: 34ms.
+    </div>
+    <div class="insight-card" style="border-color:var(--yellow);background:rgba(234,179,8,0.06)">
+      <div class="type" style="color:var(--yellow)">🔴 Sleep Impact (Low Confidence)</div>
+      Sleep hours correlate with workout quality at r=0.09 (n=159). Average sleep 6.7 hrs. 7.5+ hrs shows quality of 87.1 vs 86.2 on &lt;6 hr nights. Minimal difference.
+    </div>
+    <div class="insight-card" style="border-color:var(--green);background:rgba(34,197,94,0.06)">
+      <div class="type" style="color:var(--green)">🟢 Consistency (High Confidence)</div>
+      Workout completion rate: 75.1% (163/217 planned workouts). Recent 4-week streak at 100% completion.
+    </div>
+    <div class="insight-card" style="border-color:var(--purple);background:rgba(168,85,247,0.06)">
+      <div class="type" style="color:var(--purple)">🟢 FTP Trend (High Confidence)</div>
+      Need 0.80W/week to reach 300W by end of 2026. On track. Projected ~277W at Vatternrundan.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">📋</span> This Week (Feb 9-15, 2026)</h2>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">138</div><div class="lbl">TSS Actual</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--text-secondary)">155</div><div class="lbl">TSS Planned</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--green-light)">-11%</div><div class="lbl">Variance</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--cyan)">2.7h</div><div class="lbl">Hours</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="val" style="color:var(--blue-light)">2/2</div><div class="lbl">Completed</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--purple)">0.69</div><div class="lbl">Avg IF</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--orange)">0.81</div><div class="lbl">Peak IF</div></div>
+      <div class="mini-stat"><div class="val" style="color:var(--yellow)">62%</div><div class="lbl">Avg Recovery</div></div>
+    </div>
+
+    <h3>Workouts</h3>
+    <table class="segment-table">
+      <thead><tr><th>Day</th><th>Workout</th><th>TSS</th><th>NP</th><th>Quality</th></tr></thead>
+      <tbody>
+        <tr><td>Tue</td><td>Endurance</td><td>40.5</td><td>149W</td><td><span class="badge badge-yellow">74</span></td></tr>
+        <tr><td>Wed</td><td>Sweetspot Surges</td><td>97.5</td><td>212W</td><td><span class="badge badge-green">89</span></td></tr>
+        <tr><td>Thu</td><td colspan="4" style="color:var(--text-muted)">Day Off</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:16px">PMC Trend</h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+      CTL: 46.0 (+3.0 this week) <span style="color:var(--green-light)">↑</span><br>
+      ATL: 50.0<br>
+      TSB: -4.0 &mdash; Absorbing load well<br>
+      <span style="color:var(--text-muted)">FTP: 263W &rarr; Target 300W (0.80 W/week needed)</span>
+    </div>
+
+    <h3 style="margin-top:16px">Recovery This Week</h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+      Avg Recovery: 62% <span class="badge badge-yellow">Yellow</span><br>
+      Avg HRV: 35ms<br>
+      Avg Sleep: 6.8 hrs
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
+  Generated Feb 12, 2026 &middot; Data from TrainingPeaks + Whoop &middot; Coaching by Max Blinderman
+</div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const weeklyTSS = [
+  {week:'Feb 10',tss:118.8,flu:false},{week:'Feb 17',tss:77.7,flu:false},{week:'Feb 24',tss:282.9,flu:false},
+  {week:'Mar 3',tss:168.4,flu:false},{week:'Mar 10',tss:451.8,flu:false},{week:'Mar 17',tss:412.3,flu:false},
+  {week:'Mar 24',tss:393.1,flu:false},{week:'Mar 31',tss:283.2,flu:false},{week:'Apr 7',tss:589.4,flu:false},
+  {week:'Apr 14',tss:536.7,flu:false},{week:'Apr 21',tss:143.5,flu:false},{week:'Apr 28',tss:580.2,flu:false},
+  {week:'May 5',tss:274.1,flu:false},{week:'May 12',tss:784.0,flu:false},{week:'May 19',tss:161.0,flu:false},
+  {week:'May 26',tss:596.0,flu:false},{week:'Jun 2',tss:578.3,flu:false},{week:'Jun 9',tss:820.5,flu:false},
+  {week:'Jun 16',tss:0,flu:false},{week:'Jun 23',tss:593.1,flu:false},{week:'Jun 30',tss:243.9,flu:false},
+  {week:'Jul 7',tss:514.7,flu:false},{week:'Jul 14',tss:685.3,flu:false},{week:'Jul 21',tss:695.4,flu:false},
+  {week:'Jul 28',tss:562.1,flu:false},{week:'Aug 4',tss:444.2,flu:false},{week:'Aug 11',tss:343.4,flu:false},
+  {week:'Aug 18',tss:698.2,flu:false},{week:'Aug 25',tss:122.8,flu:false},{week:'Sep 1',tss:30.0,flu:false},
+  {week:'Sep 8',tss:582.2,flu:false},{week:'Sep 15',tss:450.3,flu:false},{week:'Sep 22',tss:457.2,flu:false},
+  {week:'Sep 29',tss:423.1,flu:false},{week:'Oct 6',tss:0,flu:false},{week:'Oct 13',tss:112.1,flu:false},
+  {week:'Oct 20',tss:255.5,flu:false},{week:'Oct 27',tss:268.1,flu:false},{week:'Nov 3',tss:232.6,flu:false},
+  {week:'Nov 10',tss:69.6,flu:false},{week:'Nov 17',tss:75.8,flu:false},{week:'Nov 24',tss:306.7,flu:false},
+  {week:'Dec 1',tss:198.9,flu:false},{week:'Dec 8',tss:377.4,flu:false},{week:'Dec 15',tss:341.7,flu:false},
+  {week:'Dec 22',tss:277.6,flu:false},{week:'Dec 29',tss:347.1,flu:false},
+  {week:'Jan 5',tss:60.7,flu:true},{week:'Jan 12',tss:353.1,flu:false},{week:'Jan 19',tss:464.9,flu:false},
+  {week:'Jan 26',tss:372.0,flu:false},{week:'Feb 2',tss:448.5,flu:false},{week:'Feb 9',tss:138.0,flu:false}
+];
+
+const pmcData = [
+  {d:'Nov 22',ctl:1.8,atl:10.8,tsb:-9.0},{d:'Nov 29',ctl:6.2,atl:24.9,tsb:-18.7},
+  {d:'Dec 1',ctl:8.2,atl:30.2,tsb:-22.0},{d:'Dec 8',ctl:11.1,atl:24.3,tsb:-13.1},
+  {d:'Dec 13',ctl:18.5,atl:54.6,tsb:-36.1},{d:'Dec 15',ctl:17.7,atl:40.1,tsb:-22.5},
+  {d:'Dec 20',ctl:23.5,atl:57.2,tsb:-33.8},{d:'Dec 23',ctl:25.7,atl:58.4,tsb:-32.7},
+  {d:'Dec 27',ctl:26.0,atl:47.5,tsb:-21.4},{d:'Dec 31',ctl:25.9,atl:39.4,tsb:-13.5},
+  {d:'Jan 4',ctl:29.4,atl:53.5,tsb:-24.0},{d:'Jan 5',ctl:29.1,atl:47.9,tsb:-18.9},
+  {d:'Jan 10',ctl:25.8,atl:22.2,tsb:3.6},{d:'Jan 12',ctl:26.9,atl:29.8,tsb:-2.8},
+  {d:'Jan 16',ctl:26.8,atl:28.9,tsb:-2.0},{d:'Jan 19',ctl:29.5,atl:41.0,tsb:-11.5},
+  {d:'Jan 24',ctl:34.2,atl:58.6,tsb:-24.4},{d:'Jan 26',ctl:35.2,atl:56.5,tsb:-21.3},
+  {d:'Jan 31',ctl:39.7,atl:67.8,tsb:-28.1},{d:'Feb 2',ctl:39.5,atl:59.7,tsb:-20.2},
+  {d:'Feb 4',ctl:41.1,atl:64.3,tsb:-23.1},{d:'Feb 7',ctl:42.4,atl:64.6,tsb:-22.2},
+  {d:'Feb 9',ctl:41.7,atl:54.0,tsb:-12.3},{d:'Feb 11',ctl:43.0,atl:58.6,tsb:-15.6},
+  {d:'Feb 12',ctl:46.0,atl:50.0,tsb:-4.0}
+];
+
+const recovery30 = [
+  {d:'Jan 13',r:73},{d:'Jan 14',r:86},{d:'Jan 15',r:64},{d:'Jan 16',r:82},{d:'Jan 17',r:53},
+  {d:'Jan 18',r:65},{d:'Jan 19',r:27},{d:'Jan 20',r:92},{d:'Jan 21',r:63},{d:'Jan 22',r:44},
+  {d:'Jan 23',r:73},{d:'Jan 24',r:85},{d:'Jan 25',r:85},{d:'Jan 26',r:47},{d:'Jan 27',r:89},
+  {d:'Jan 28',r:80},{d:'Jan 29',r:40},{d:'Jan 30',r:70},{d:'Jan 31',r:52},{d:'Feb 1',r:38},
+  {d:'Feb 2',r:74},{d:'Feb 3',r:78},{d:'Feb 4',r:80},{d:'Feb 5',r:61},{d:'Feb 6',r:47},
+  {d:'Feb 7',r:63},{d:'Feb 8',r:61},{d:'Feb 9',r:61},{d:'Feb 10',r:86},{d:'Feb 11',r:56},
+  {d:'Feb 12',r:47}
+];
+
+const hrv30 = [
+  {d:'Jan 13',h:33},{d:'Jan 14',h:38},{d:'Jan 15',h:32},{d:'Jan 16',h:38},{d:'Jan 17',h:28},
+  {d:'Jan 18',h:32},{d:'Jan 19',h:26},{d:'Jan 20',h:40},{d:'Jan 21',h:32},{d:'Jan 22',h:27},
+  {d:'Jan 23',h:33},{d:'Jan 24',h:36},{d:'Jan 25',h:38},{d:'Jan 26',h:28},{d:'Jan 27',h:45},
+  {d:'Jan 28',h:66},{d:'Jan 29',h:29},{d:'Jan 30',h:38},{d:'Jan 31',h:31},{d:'Feb 1',h:25},
+  {d:'Feb 2',h:37},{d:'Feb 3',h:38},{d:'Feb 4',h:40},{d:'Feb 5',h:36},{d:'Feb 6',h:31},
+  {d:'Feb 7',h:36},{d:'Feb 8',h:36},{d:'Feb 9',h:35},{d:'Feb 10',h:40},{d:'Feb 11',h:33},
+  {d:'Feb 12',h:33}
+];
+
+const sleep30 = [
+  {d:'Jan 13',s:6.2},{d:'Jan 14',s:6.7},{d:'Jan 15',s:6.9},{d:'Jan 16',s:5.4},{d:'Jan 17',s:7.9},
+  {d:'Jan 18',s:6.6},{d:'Jan 19',s:7.1},{d:'Jan 20',s:7.0},{d:'Jan 21',s:7.5},{d:'Jan 22',s:8.0},
+  {d:'Jan 23',s:7.9},{d:'Jan 24',s:8.9},{d:'Jan 25',s:6.2},{d:'Jan 26',s:7.1},{d:'Jan 27',s:6.3},
+  {d:'Jan 28',s:6.0},{d:'Jan 29',s:6.2},{d:'Jan 30',s:7.0},{d:'Jan 31',s:8.1},{d:'Feb 1',s:9.5},
+  {d:'Feb 2',s:7.4},{d:'Feb 3',s:6.9},{d:'Feb 4',s:8.3},{d:'Feb 5',s:6.6},{d:'Feb 6',s:7.1},
+  {d:'Feb 7',s:7.4},{d:'Feb 8',s:6.7},{d:'Feb 9',s:7.0},{d:'Feb 10',s:6.5},{d:'Feb 11',s:7.4},
+  {d:'Feb 12',s:6.3}
+];
+
+const qualityData = [
+  {d:'Oct 22',q:91.5},{d:'Oct 24',q:86.9},{d:'Oct 26',q:91.7},{d:'Oct 29',q:78.4},{d:'Oct 31',q:87.4},
+  {d:'Nov 1',q:94.4},{d:'Nov 3',q:92.0},{d:'Nov 4',q:91.3},{d:'Nov 6',q:87.0},{d:'Nov 7',q:85.8},
+  {d:'Nov 24',q:93.2},{d:'Nov 25',q:95.3},{d:'Nov 29',q:79.0},{d:'Nov 30',q:92.2},
+  {d:'Dec 2',q:93.6},{d:'Dec 3',q:91.8},{d:'Dec 5',q:90.8},{d:'Dec 9',q:94.1},{d:'Dec 10',q:88.9},
+  {d:'Dec 12',q:91.9},{d:'Dec 13',q:93.2},{d:'Dec 16',q:90.5},{d:'Dec 17',q:86.9},{d:'Dec 19',q:89.9},
+  {d:'Dec 20',q:92.3},{d:'Dec 22',q:86.5},{d:'Dec 23',q:88.6},{d:'Dec 27',q:86.1},{d:'Dec 31',q:86.4},
+  {d:'Jan 2',q:94.1},{d:'Jan 3',q:87.9},{d:'Jan 4',q:92.2},{d:'Jan 11',q:94.6},{d:'Jan 12',q:92.2},
+  {d:'Jan 14',q:94.1},{d:'Jan 16',q:91.7},{d:'Jan 17',q:94.1},{d:'Jan 18',q:93.1},{d:'Jan 20',q:95.4},
+  {d:'Jan 21',q:92.2},{d:'Jan 23',q:91.5},{d:'Jan 24',q:92.8},{d:'Jan 25',q:87.8},{d:'Jan 27',q:93.4},
+  {d:'Jan 28',q:90.3},{d:'Jan 30',q:92.5},{d:'Jan 31',q:90.6},{d:'Feb 2',q:94.1},{d:'Feb 3',q:78.3},
+  {d:'Feb 4',q:88.5},{d:'Feb 6',q:91.3},{d:'Feb 7',q:91.7},{d:'Feb 8',q:79.3},{d:'Feb 10',q:74.2},
+  {d:'Feb 11',q:89.2}
+];
+
+// ═══════════════════════════════════════
+// CHART CONFIG
+// ═══════════════════════════════════════
+Chart.defaults.color = '#9ca3b4';
+Chart.defaults.borderColor = 'rgba(42,45,58,0.5)';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 11;
+
+// TSS Chart
+new Chart(document.getElementById('tssChart'), {
+  type: 'bar',
+  data: {
+    labels: weeklyTSS.map(d=>d.week),
+    datasets: [{
+      data: weeklyTSS.map(d=>d.tss),
+      backgroundColor: weeklyTSS.map(d=> {
+        if(d.flu) return 'rgba(239,68,68,0.7)';
+        if(d.tss>=500) return 'rgba(59,130,246,0.8)';
+        if(d.tss>=300) return 'rgba(59,130,246,0.5)';
+        return 'rgba(59,130,246,0.25)';
+      }),
+      borderRadius: 3,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: {display:false},
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            let extra = weeklyTSS[ctx.dataIndex].flu ? ' (FLU WEEK)' : '';
+            return `TSS: ${ctx.raw}${extra}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},
+      y: {beginAtZero:true,title:{display:true,text:'Weekly TSS'}}
+    }
+  }
+});
+
+// PMC Chart
+new Chart(document.getElementById('pmcChart'), {
+  type: 'line',
+  data: {
+    labels: pmcData.map(d=>d.d),
+    datasets: [
+      {label:'CTL (Fitness)',data:pmcData.map(d=>d.ctl),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.3,pointRadius:2},
+      {label:'ATL (Fatigue)',data:pmcData.map(d=>d.atl),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.05)',fill:false,tension:0.3,pointRadius:2},
+      {label:'TSB (Form)',data:pmcData.map(d=>d.tsb),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.05)',fill:true,tension:0.3,pointRadius:2,borderDash:[4,4]}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {legend:{position:'top',labels:{boxWidth:12,padding:8}}},
+    scales: {
+      x: {ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},
+      y: {title:{display:true,text:'Load / Form'}}
+    }
+  }
+});
+
+// Recovery Chart
+new Chart(document.getElementById('recoveryChart'), {
+  type: 'bar',
+  data: {
+    labels: recovery30.map(d=>d.d),
+    datasets: [{
+      data: recovery30.map(d=>d.r),
+      backgroundColor: recovery30.map(d=> d.r>=67?'rgba(34,197,94,0.6)':d.r>=34?'rgba(234,179,8,0.6)':'rgba(239,68,68,0.6)'),
+      borderRadius: 2,
+    }]
+  },
+  options: {
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{maxRotation:45,font:{size:8},maxTicksLimit:10},grid:{display:false}},y:{beginAtZero:true,max:100}}
+  }
+});
+
+// HRV Chart
+const hrv7d = hrv30.map((d,i)=>{
+  const slice = hrv30.slice(Math.max(0,i-6),i+1);
+  return slice.reduce((a,b)=>a+b.h,0)/slice.length;
+});
+new Chart(document.getElementById('hrvChart'), {
+  type:'line',
+  data:{
+    labels:hrv30.map(d=>d.d),
+    datasets:[
+      {label:'HRV',data:hrv30.map(d=>d.h),borderColor:'rgba(96,165,250,0.3)',pointRadius:2,pointBackgroundColor:'rgba(96,165,250,0.5)',fill:false,tension:0.1},
+      {label:'7d Avg',data:hrv7d,borderColor:'#60a5fa',borderWidth:2,pointRadius:0,fill:false,tension:0.3}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{maxRotation:45,font:{size:8},maxTicksLimit:10},grid:{display:false}},y:{title:{display:true,text:'ms'}}}
+  }
+});
+
+// Sleep Chart
+new Chart(document.getElementById('sleepChart'), {
+  type:'bar',
+  data:{
+    labels:sleep30.map(d=>d.d),
+    datasets:[{
+      data:sleep30.map(d=>d.s),
+      backgroundColor:sleep30.map(d=>d.s>=7.5?'rgba(6,182,212,0.6)':d.s>=6?'rgba(6,182,212,0.35)':'rgba(239,68,68,0.4)'),
+      borderRadius:2,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},annotation:{}},
+    scales:{x:{ticks:{maxRotation:45,font:{size:8},maxTicksLimit:10},grid:{display:false}},y:{min:4,max:10,title:{display:true,text:'Hours'}}}
+  }
+});
+
+// Quality Chart
+new Chart(document.getElementById('qualityChart'), {
+  type:'line',
+  data:{
+    labels:qualityData.map(d=>d.d),
+    datasets:[{
+      data:qualityData.map(d=>d.q),
+      borderColor:'#a855f7',
+      backgroundColor:'rgba(168,85,247,0.1)',
+      fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'#a855f7'
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{maxRotation:45,font:{size:8},maxTicksLimit:12},grid:{display:false}},y:{min:60,max:100,title:{display:true,text:'Quality Score'}}}
+  }
+});
+
+// FTP Projection Chart
+const ftpMonths = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ftpProjection = ftpMonths.map((_,i)=> 263 + (0.80 * ((i) * 4.3)));
+new Chart(document.getElementById('ftpChart'), {
+  type:'line',
+  data:{
+    labels:ftpMonths,
+    datasets:[
+      {label:'Projected FTP',data:ftpProjection.map(v=>Math.round(v)),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.3,pointRadius:3},
+      {label:'300W Target',data:ftpMonths.map(()=>300),borderColor:'rgba(34,197,94,0.4)',borderDash:[6,4],pointRadius:0,fill:false}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{boxWidth:12,padding:8}}},
+    scales:{x:{grid:{display:false}},y:{min:260,max:310,title:{display:true,text:'Watts'}}}
+  }
+});
+</script>
+</body>
+</html>

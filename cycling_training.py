@@ -1913,7 +1913,7 @@ def get_top_insight():
 
 # ── Phase 5: Vatternrundan Race Prep ──────────────────────────────
 
-RACE_DATE = date(2026, 6, 12)
+RACE_DATE = date(2026, 6, 13)  # Start 03:20 AM June 13
 RACE_DISTANCE_KM = 315
 RACE_TARGET_HOURS = 10.0
 RACE_TARGET_AVG_KPH = 31.5
@@ -1926,12 +1926,16 @@ VATTERN_SEGMENTS = [
     {"name": "Granna -> Motala (Final stretch)", "km_start": 231, "km_end": 315, "terrain": "Mixed", "notes": "Fatigue management. Push if legs are good."},
 ]
 
+# Race start: 03:20 AM June 13, 2026
+RACE_START_TIME = "03:20"
+
 # Max 4 stops. Jönköping (~km 170 / mile 106) is the hot food stop.
+# Fueling: Formula 369 in bottles (2 cages + 1 flexible), gels to supplement, pickles/bread/blueberry soup at stops
 REST_STOPS = [
-    {"km": 80, "mi": 50, "name": "Stop 1", "action": "Quick fuel + bottles. 3-5 min max."},
-    {"km": 170, "mi": 106, "name": "Jönköping (hot food)", "action": "Hot meal stop. Refuel properly. 10-15 min."},
-    {"km": 240, "mi": 149, "name": "Stop 3", "action": "Quick fuel + bottles. Night section. 3-5 min."},
-    {"km": 290, "mi": 180, "name": "Stop 4", "action": "Last fuel. Quick in/out. Push to finish."},
+    {"km": 80, "mi": 50, "name": "Stop 1", "action": "Refill F369 bottles. Pickles + bread. 3-5 min max."},
+    {"km": 170, "mi": 106, "name": "Jönköping (hot food)", "action": "Hot meal (meatballs/mashed). Blueberry soup. Refill bottles. 10-15 min."},
+    {"km": 240, "mi": 149, "name": "Stop 3", "action": "Refill F369 bottles. Pickles + bread. Quick gel. 3-5 min."},
+    {"km": 290, "mi": 180, "name": "Stop 4", "action": "Last refill. Gel + whatever looks good. Push to finish."},
 ]
 
 
@@ -1985,7 +1989,7 @@ def cmd_race_plan():
 
     print("=" * 60)
     print("    🏁 VATTERNRUNDAN RACE PLAN")
-    print(f"    {RACE_DATE} | {RACE_DISTANCE_KM}km | Target: sub-{RACE_TARGET_HOURS:.0f} hours")
+    print(f"    {RACE_DATE} | Start 03:20 AM | {RACE_DISTANCE_KM}km / 196mi | Target: sub-{RACE_TARGET_HOURS:.0f} hours")
     print("=" * 60)
     print(f"\n  Days to race: {days_to_race}")
     print(f"  Current FTP: {current_ftp}W (as of {ftp_date})")
@@ -2050,19 +2054,34 @@ def cmd_race_plan():
     print(f"\n{'─'*60}")
     print("  🍌 REST STOP / FUELING STRATEGY (4 stops max)")
     print(f"{'─'*60}")
-    print("  Target: 60-90g carbs/hour from the start.")
+    print("  Start: 03:20 AM, June 13. Riding with a friend.")
+    print("")
+    print("  PRIMARY FUEL: Formula 369 (30g carbs/scoop, 1:1 glucose:fructose)")
+    print("    3 bottles: 2 in cages + 1 flexible rubber bottle")
+    print("    Mix: 2-3 scoops per bottle (60-90g carbs per bottle)")
+    print("    Target: 80-90g carbs/hour (bottle + gel every 45-60 min)")
+    print("  SUPPLEMENT: Gels as needed between bottles")
+    print("  AT STOPS: Pickles (sodium), bread buns, blueberry soup")
+    print("  Jönköping: Hot meal (Swedish meatballs, mashed potatoes)")
     print("  Hydration: 16-24 oz/hour depending on temp.")
-    print("  Riding with a friend. Jönköping is the hot food stop.")
-    print(f"\n  {'Stop':>6}  {'Mile':>5}  {'Est. Time':>10}  {'Action'}")
-    print("  " + "-" * 60)
+    print(f"\n  {'Stop':>6}  {'Mile':>5}  {'Elapsed':>8}  {'Clock':>7}  {'Action'}")
+    print("  " + "-" * 72)
     for stop in REST_STOPS:
         est_hrs = stop["km"] / RACE_TARGET_AVG_KPH
         h = int(est_hrs)
         m = int((est_hrs - h) * 60)
-        print(f"  {stop['name']:>20}  {stop['mi']:>3}mi  {h}h{m:02d}m in   {stop['action']}")
+        # Clock time based on 03:20 start
+        clock_h = (3 + h + (20 + m) // 60) % 24
+        clock_m = (20 + m) % 60
+        am_pm = "AM" if clock_h < 12 else "PM"
+        clock_h_12 = clock_h if clock_h <= 12 else clock_h - 12
+        if clock_h_12 == 0:
+            clock_h_12 = 12
+        print(f"  {stop['name']:>20}  {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm}  {stop['action']}")
 
-    print(f"\n  Night section: ~mi 93-174 (roughly 10pm-4am)")
-    print("  Keep eating! Appetite drops at night but fueling is critical.")
+    print(f"\n  Dark section: Start through ~mi 30 (03:20-05:00 AM, pre-dawn)")
+    print("  Sunrise ~3:30 AM in June Sweden. Lights mandatory at start.")
+    print("  Keep eating from the gun! Don't wait until you're hungry.")
 
     # 2025 race reference
     print(f"\n{'─'*60}")
