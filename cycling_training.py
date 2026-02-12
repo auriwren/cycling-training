@@ -1926,7 +1926,13 @@ VATTERN_SEGMENTS = [
     {"name": "Granna -> Motala (Final stretch)", "km_start": 231, "km_end": 315, "terrain": "Mixed", "notes": "Fatigue management. Push if legs are good."},
 ]
 
-REST_STOPS_KM = [50, 100, 120, 150, 170, 200, 231, 260, 290, 310]
+# Max 4 stops. Jönköping (~km 170 / mile 106) is the hot food stop.
+REST_STOPS = [
+    {"km": 80, "mi": 50, "name": "Stop 1", "action": "Quick fuel + bottles. 3-5 min max."},
+    {"km": 170, "mi": 106, "name": "Jönköping (hot food)", "action": "Hot meal stop. Refuel properly. 10-15 min."},
+    {"km": 240, "mi": 149, "name": "Stop 3", "action": "Quick fuel + bottles. Night section. 3-5 min."},
+    {"km": 290, "mi": 180, "name": "Stop 4", "action": "Last fuel. Quick in/out. Push to finish."},
+]
 
 
 def _get_current_ftp():
@@ -2040,31 +2046,32 @@ def cmd_race_plan():
         print(f"    Terrain: {seg['terrain']}")
         print(f"    Strategy: {seg['notes']}")
 
-    # Rest stop strategy
+    # Rest stop strategy (max 4 stops)
     print(f"\n{'─'*60}")
-    print("  🍌 REST STOP / FUELING STRATEGY")
+    print("  🍌 REST STOP / FUELING STRATEGY (4 stops max)")
     print(f"{'─'*60}")
-    print("  Rule: Fuel every 50km. Max 5 min per stop.")
     print("  Target: 60-90g carbs/hour from the start.")
-    print("  Hydration: 500-750ml/hour depending on temp.")
-    print(f"\n  {'Stop':>6}  {'Km':>5}  {'Est. Time':>10}  {'Action'}")
-    print("  " + "-" * 50)
-    for i, km in enumerate(REST_STOPS_KM):
-        est_hrs = km / RACE_TARGET_AVG_KPH
+    print("  Hydration: 16-24 oz/hour depending on temp.")
+    print("  Riding with a friend. Jönköping is the hot food stop.")
+    print(f"\n  {'Stop':>6}  {'Mile':>5}  {'Est. Time':>10}  {'Action'}")
+    print("  " + "-" * 60)
+    for stop in REST_STOPS:
+        est_hrs = stop["km"] / RACE_TARGET_AVG_KPH
         h = int(est_hrs)
         m = int((est_hrs - h) * 60)
-        if i == len(REST_STOPS_KM) - 1:
-            action = "Splash-and-go. Almost there!"
-        elif km <= 100:
-            action = "Quick fuel. Don't linger."
-        elif km <= 230:
-            action = "Fuel + stretch. Max 5 min."
-        else:
-            action = "Quick fuel. Push to finish."
-        print(f"  {i+1:>5})  {km:>4}km  {h}h{m:02d}m in   {action}")
+        print(f"  {stop['name']:>20}  {stop['mi']:>3}mi  {h}h{m:02d}m in   {stop['action']}")
 
-    print(f"\n  Night section: ~Km 150-280 (roughly 10pm-4am)")
+    print(f"\n  Night section: ~mi 93-174 (roughly 10pm-4am)")
     print("  Keep eating! Appetite drops at night but fueling is critical.")
+
+    # 2025 race reference
+    print(f"\n{'─'*60}")
+    print("  📋 2025 VÄTTERNRUNDAN REFERENCE (June 14, solo)")
+    print(f"{'─'*60}")
+    print("  Time: 10h09m | Distance: 196 mi | TSS: 682 | IF: 0.82")
+    print("  NP: 215W | Avg: 192W | Avg HR: 142 | Max HR: 168")
+    print("  Elevation: 5,850 ft | Calories: 7,002 | Cadence: 84")
+    print("  Feeling: 1 (great) | PRs: 4")
     print("\n" + "=" * 60)
 
 
