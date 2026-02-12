@@ -1,0 +1,172 @@
+{
+  "_comment": "Copy this file to config.json and customize for your setup.",
+
+  "database": {
+    "connection": "dbname=cycling_training user=postgres"
+  },
+
+  "credentials": {
+    "whoop_env": "~/.config/cycling-training/whoop.env",
+    "trainingpeaks_env": "~/.config/cycling-training/trainingpeaks.env",
+    "strava_env": "~/.config/cycling-training/strava.env",
+    "fastmail_env": "~/.config/cycling-training/fastmail.env"
+  },
+
+  "cache": {
+    "trainingpeaks_token": "~/.cache/cycling-training/tp-token.json"
+  },
+
+  "api": {
+    "whoop": {
+      "base_url": "https://api.prod.whoop.com/developer",
+      "recovery_endpoint": "/v2/recovery?limit=25",
+      "sleep_endpoint": "/v2/activity/sleep?limit=25",
+      "cycle_endpoint": "/v2/cycle?limit=25",
+      "timeout_sec": 15
+    },
+    "trainingpeaks": {
+      "token_url": "https://tpapi.trainingpeaks.com/users/v3/token",
+      "workouts_url_template": "https://tpapi.trainingpeaks.com/fitness/v6/athletes/{user_id}/workouts/{start_date}/{end_date}",
+      "timeout_sec": 15,
+      "default_user_id": "YOUR_TP_USER_ID"
+    },
+    "strava": {
+      "oauth_token_url": "https://www.strava.com/oauth/token",
+      "api_base_url": "https://www.strava.com/api/v3",
+      "activities_endpoint": "/athlete/activities",
+      "activity_zones_endpoint": "/activities/{activity_id}/zones",
+      "club_events_endpoint": "/clubs/{club_id}/group_events",
+      "timeout_sec": 15,
+      "rate_limit_threshold": 90,
+      "rate_limit_pause_sec": 900,
+      "max_retries": 5,
+      "retry_base_delay_sec": 5
+    },
+    "weather": {
+      "geocode_url": "https://geocoding-api.open-meteo.com/v1/search",
+      "forecast_url": "https://api.open-meteo.com/v1/forecast",
+      "forecast_days": 3,
+      "timezone": "America/New_York",
+      "temperature_unit": "fahrenheit",
+      "wind_speed_unit": "mph",
+      "default_location": "Your City, State",
+      "default_lat": 40.7128,
+      "default_lon": -74.0060
+    },
+    "race_weather": {
+      "forecast_url": "https://api.met.no/weatherapi/locationforecast/2.0/compact",
+      "user_agent": "CyclingTraining/1.0 your@email.com",
+      "lat": 0.0,
+      "lon": 0.0
+    }
+  },
+
+  "strava": {
+    "_clubs_comment": "Map of Strava club IDs to display names. Find club IDs from the Strava URL: strava.com/clubs/{id}",
+    "clubs": {
+      "12345": "My Local Cycling Club",
+      "67890": "Another Club"
+    },
+    "_zones_comment": "Power zones in watts, based on your FTP. These follow the classic Coggan 7-zone model. Recalculate when your FTP changes.",
+    "coach_zones": [
+      {"name": "recovery", "min": 0, "max": 144},
+      {"name": "endurance", "min": 145, "max": 196},
+      {"name": "tempo", "min": 197, "max": 236},
+      {"name": "threshold", "min": 237, "max": 275},
+      {"name": "vo2", "min": 276, "max": 314},
+      {"name": "anaerobic", "min": 315, "max": 393},
+      {"name": "neuromuscular", "min": 394, "max": 9999}
+    ]
+  },
+
+  "weather": {
+    "_geocode_cache_comment": "Pre-cached lat/lon for locations you check frequently, avoids geocoding API calls.",
+    "geocode_cache": {
+      "your city": [40.7128, -74.0060]
+    },
+    "wmo_codes": {
+      "0": "Clear sky",
+      "1": "Mainly clear",
+      "2": "Partly cloudy",
+      "3": "Overcast",
+      "45": "Foggy",
+      "48": "Rime fog",
+      "51": "Light drizzle",
+      "53": "Drizzle",
+      "55": "Heavy drizzle",
+      "61": "Light rain",
+      "63": "Rain",
+      "65": "Heavy rain",
+      "71": "Light snow",
+      "73": "Snow",
+      "75": "Heavy snow",
+      "77": "Snow grains",
+      "80": "Light showers",
+      "81": "Showers",
+      "82": "Heavy showers",
+      "85": "Light snow showers",
+      "86": "Heavy snow showers",
+      "95": "Thunderstorm",
+      "96": "Thunderstorm w/ hail",
+      "99": "Thunderstorm w/ heavy hail"
+    },
+    "_kit_comment": "Temperature thresholds (Fahrenheit) for clothing recommendations. Customize for your climate and preferences.",
+    "kit_thresholds_f": [
+      {"max_temp": 29, "recommendation": "Below 30F - indoor ride recommended"},
+      {"max_temp": 39, "recommendation": "Full winter kit: thermal bibs, winter jacket, shoe covers, heavy gloves, balaclava"},
+      {"max_temp": 49, "recommendation": "Cold weather: thermal jersey, leg warmers, wind vest, medium gloves, ear cover"},
+      {"max_temp": 59, "recommendation": "Cool weather: long sleeve jersey, arm warmers, knee warmers, light gloves"},
+      {"max_temp": 69, "recommendation": "Mild: short sleeve jersey, bibs, light arm warmers optional"},
+      {"max_temp": 200, "recommendation": "Summer kit: short sleeve jersey, bibs, sunscreen"}
+    ]
+  },
+
+  "ftp": {
+    "_comment": "Your current FTP (watts), goal FTP, target date (ISO format), and next scheduled test date.",
+    "default_ftp": 200,
+    "target_ftp": 250,
+    "target_date": "2026-12-31",
+    "next_test_date": "2026-03-01"
+  },
+
+  "race": {
+    "_comment": "Configure for your target event. All fields are optional; remove the race section entirely if you're not targeting a specific event.",
+    "race_date": "2026-06-13",
+    "halvvattern_date": "2026-06-06",
+    "start_time": "06:00",
+    "distance_km": 200,
+    "target_hours": 8.0,
+    "target_avg_kph": 25.0,
+    "segments": [
+      {"name": "Start to Checkpoint 1", "km_start": 0, "km_end": 50, "terrain": "Flat", "notes": "Easy start, find rhythm."},
+      {"name": "Checkpoint 1 to Finish", "km_start": 50, "km_end": 200, "terrain": "Rolling", "notes": "Maintain steady effort."}
+    ],
+    "rest_stops": [
+      {"km": 50, "mi": 31, "name": "Checkpoint 1", "stop_min": 10, "action": "Refill bottles, quick food."},
+      {"km": 150, "mi": 93, "name": "Checkpoint 2", "stop_min": 15, "action": "Longer stop, real food."}
+    ],
+    "taper": {
+      "base_weekly_tss_min": 300,
+      "build_weekly_tss": 450,
+      "peak_weekly_tss": 550,
+      "taper_week2_pct": 0.7,
+      "taper_week1_pct": 0.5,
+      "easy_spin_tss": 15
+    },
+    "climate_averages": {
+      "temp_range_f": "60-80F",
+      "overnight_lows_f": "50-60F",
+      "precip_mm": "moderate",
+      "daylight": "14-16 hours",
+      "wind": "Variable"
+    }
+  },
+
+  "dashboard": {
+    "project_dir": ".",
+    "template_path": "dashboard_template.html",
+    "output_path": "dashboard.html",
+    "athlete_name": "Athlete",
+    "coach_name": "Coach"
+  }
+}

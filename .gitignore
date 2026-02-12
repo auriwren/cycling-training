@@ -1,31 +1,28 @@
-# Python
-__pycache__/
-*.py[cod]
+
 *$py.class
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
-
-# Environment
-.env
-*.env
-.venv/
-venv/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Generated output (contains personal data)
-dashboard.html
-
 # Backups
 *.bak
-
-# OS
+build/
+config.json
+dashboard.html
+dist/
 .DS_Store
+*.egg
+*.egg-info/
+*.env
+.env
+# Environment
+# Generated output (contains personal data)
+# IDE
+.idea/
+# OS
+__pycache__/
+*.py[cod]
+# Python
+*.so
+*.swo
+*.swp
 Thumbs.db
+.venv/
+venv/
+.vscode/
