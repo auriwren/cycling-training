@@ -20,6 +20,9 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import warnings
+warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*")
+
 import psycopg2
 import psycopg2.extras
 import requests
@@ -757,6 +760,11 @@ def show_status():
         q_emoji = "🟢" if q >= 80 else ("🟡" if q >= 60 else "🔴")
         print(f"\n🏋️ Last Workout Quality: {q:.0f}/100 {q_emoji} ({wq['title']}, {wq['date']})")
 
+    # Top insight
+    insight = get_top_insight()
+    if insight:
+        print(f"\n💡 Latest insight: {insight[1][:120]}...")
+
     print("\n" + "═" * 50)
     cur.close()
     conn.close()
@@ -1417,6 +1425,492 @@ def weather(location="Brooklyn, NY"):
     print("\n" + "═" * 55)
 
 
+# ── Correlation Engine ─────────────────────────────────────────────
+
+def cmd_correlate():
+    """Pattern discovery: recovery vs workout quality correlations."""
+    import pandas as pd
+    import numpy as np
+
+    conn = get_db()
+    df = pd.read_sql("""
+        SELECT dp.*, 
+               LAG(dp.strain, 1) OVER (ORDER BY dp.date) as prev_strain,
+               LAG(dp.sleep_hours, 1) OVER (ORDER BY dp.date) as prev_sleep_hours,
+               LAG(dp.sleep_score, 1) OVER (ORDER BY dp.date) as prev_sleep_score
+        FROM daily_performance dp
+        ORDER BY dp.date
+    """, conn)
+    conn.close()
+
+    # Filter to days with both recovery and workout data
+    both = df.dropna(subset=['recovery_score', 'workout_quality']).copy()
+    both['recovery_score'] = both['recovery_score'].astype(float)
+    both['workout_quality'] = both['workout_quality'].astype(float)
+    both['hrv_rmssd'] = both['hrv_rmssd'].astype(float)
+    both['sleep_hours'] = both['sleep_hours'].astype(float)
+    both['sleep_score'] = both['sleep_score'].astype(float)
+    both['strain'] = both['strain'].astype(float)
+    both['prev_strain'] = pd.to_numeric(both['prev_strain'], errors='coerce')
+    both['prev_sleep_hours'] = pd.to_numeric(both['prev_sleep_hours'], errors='coerce')
+    both['prev_sleep_score'] = pd.to_numeric(both['prev_sleep_score'], errors='coerce')
+    both['dow'] = pd.to_datetime(both['date']).dt.day_name()
+
+    n = len(both)
+    print("═" * 55)
+    print("    🔬 RECOVERY-TRAINING CORRELATION ANALYSIS")
+    print("═" * 55)
+    print(f"\n  Data: {n} days with both recovery and workout data")
+
+    # 1. Recovery vs workout quality by bracket
+    print(f"\n{'─'*55}")
+    print("  📊 RECOVERY SCORE vs WORKOUT QUALITY")
+    print(f"{'─'*55}")
+    brackets = [
+        ('🔴 Red (<33)', both[both['recovery_score'] < 33]),
+        ('🟡 Yellow (33-66)', both[(both['recovery_score'] >= 33) & (both['recovery_score'] <= 66)]),
+        ('🟢 Green (>66)', both[both['recovery_score'] > 66]),
+    ]
+    for label, subset in brackets:
+        if len(subset) > 0:
+            avg_q = subset['workout_quality'].mean()
+            std_q = subset['workout_quality'].std()
+            print(f"  {label}: avg quality {avg_q:.1f} ± {std_q:.1f} (n={len(subset)})")
+        else:
+            print(f"  {label}: no data")
+
+    # Correlation coefficient
+    corr_rq = both[['recovery_score', 'workout_quality']].corr().iloc[0, 1]
+    print(f"\n  Correlation (recovery vs quality): r = {corr_rq:.3f}")
+    strength = "strong" if abs(corr_rq) > 0.5 else ("moderate" if abs(corr_rq) > 0.3 else "weak")
+    print(f"  Interpretation: {strength} {'positive' if corr_rq > 0 else 'negative'} relationship")
+
+    # 2. HRV threshold
+    print(f"\n{'─'*55}")
+    print("  💓 HRV THRESHOLD ANALYSIS")
+    print(f"{'─'*55}")
+    good = both[both['workout_quality'] >= 80]
+    poor = both[both['workout_quality'] < 80]
+    if len(good) >= 5 and len(poor) >= 5:
+        good_hrv = good['hrv_rmssd'].dropna()
+        poor_hrv = poor['hrv_rmssd'].dropna()
+        print(f"  Good workouts (quality >= 80): avg HRV {good_hrv.mean():.1f}ms (n={len(good_hrv)})")
+        print(f"  Other workouts (quality < 80): avg HRV {poor_hrv.mean():.1f}ms (n={len(poor_hrv)})")
+        threshold = good_hrv.quantile(0.25)
+        print(f"  Suggested HRV threshold: ~{threshold:.0f}ms (25th pctile of good workouts)")
+    else:
+        print(f"  Insufficient data (good: n={len(good)}, poor: n={len(poor)})")
+
+    # 3. Sleep impact
+    print(f"\n{'─'*55}")
+    print("  😴 SLEEP IMPACT ON WORKOUT QUALITY")
+    print(f"{'─'*55}")
+    sleep_data = both.dropna(subset=['sleep_hours'])
+    if len(sleep_data) >= 10:
+        corr_sleep = sleep_data[['sleep_hours', 'workout_quality']].corr().iloc[0, 1]
+        print(f"  Sleep hours vs quality: r = {corr_sleep:.3f} (n={len(sleep_data)})")
+        # Bucket by sleep hours
+        low_sleep = sleep_data[sleep_data['sleep_hours'] < 6]
+        mid_sleep = sleep_data[(sleep_data['sleep_hours'] >= 6) & (sleep_data['sleep_hours'] < 7.5)]
+        high_sleep = sleep_data[sleep_data['sleep_hours'] >= 7.5]
+        for label, subset in [('<6 hrs', low_sleep), ('6-7.5 hrs', mid_sleep), ('7.5+ hrs', high_sleep)]:
+            if len(subset) > 0:
+                print(f"  Sleep {label}: avg quality {subset['workout_quality'].mean():.1f} (n={len(subset)})")
+
+    sleep_score_data = both.dropna(subset=['sleep_score'])
+    if len(sleep_score_data) >= 10:
+        corr_ss = sleep_score_data[['sleep_score', 'workout_quality']].corr().iloc[0, 1]
+        print(f"  Sleep score vs quality: r = {corr_ss:.3f} (n={len(sleep_score_data)})")
+
+    # 4. Strain accumulation
+    print(f"\n{'─'*55}")
+    print("  🔥 PREVIOUS DAY STRAIN vs WORKOUT QUALITY")
+    print(f"{'─'*55}")
+    strain_data = both.dropna(subset=['prev_strain'])
+    if len(strain_data) >= 10:
+        corr_strain = strain_data[['prev_strain', 'workout_quality']].corr().iloc[0, 1]
+        print(f"  Prior day strain vs quality: r = {corr_strain:.3f} (n={len(strain_data)})")
+        low_strain = strain_data[strain_data['prev_strain'] < 10]
+        high_strain = strain_data[strain_data['prev_strain'] >= 14]
+        mid_strain = strain_data[(strain_data['prev_strain'] >= 10) & (strain_data['prev_strain'] < 14)]
+        for label, subset in [('Low (<10)', low_strain), ('Medium (10-14)', mid_strain), ('High (14+)', high_strain)]:
+            if len(subset) > 0:
+                print(f"  Prior strain {label}: avg quality {subset['workout_quality'].mean():.1f} (n={len(subset)})")
+
+    # 5. Best workout conditions
+    print(f"\n{'─'*55}")
+    print("  🏆 BEST WORKOUT CONDITIONS")
+    print(f"{'─'*55}")
+    top = both.nlargest(20, 'workout_quality')
+    if len(top) >= 5:
+        print(f"  Top 20 workouts (quality avg {top['workout_quality'].mean():.1f}):")
+        print(f"    Avg recovery: {top['recovery_score'].mean():.0f}%")
+        print(f"    Avg HRV: {top['hrv_rmssd'].mean():.0f}ms")
+        print(f"    Avg sleep: {top['sleep_hours'].mean():.1f} hrs")
+        print(f"    Avg sleep score: {top['sleep_score'].mean():.0f}%")
+
+    # 6. Weekly pattern
+    print(f"\n{'─'*55}")
+    print("  📅 DAY OF WEEK PATTERNS")
+    print(f"{'─'*55}")
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    dow_quality = both.groupby('dow')['workout_quality'].agg(['mean', 'count'])
+    dow_strain = both.groupby('dow')['strain'].agg(['mean', 'count'])
+    
+    print("  Workout Quality by Day:")
+    for day in day_order:
+        if day in dow_quality.index:
+            row = dow_quality.loc[day]
+            bar = "█" * int(row['mean'] / 5)
+            print(f"    {day:<10} {row['mean']:5.1f} {bar} (n={int(row['count'])})")
+
+    print("\n  Strain by Day:")
+    strain_dow = df.dropna(subset=['strain']).copy()
+    strain_dow['dow'] = pd.to_datetime(strain_dow['date']).dt.day_name()
+    dow_s = strain_dow.groupby('dow')['strain'].agg(['mean', 'count'])
+    for day in day_order:
+        if day in dow_s.index:
+            row = dow_s.loc[day]
+            print(f"    {day:<10} {float(row['mean']):5.1f} (n={int(row['count'])})")
+
+    # 7. Consistency metric
+    print(f"\n{'─'*55}")
+    print("  ✅ WORKOUT CONSISTENCY")
+    print(f"{'─'*55}")
+    conn2 = get_db()
+    cur = conn2.cursor()
+    cur.execute("SELECT COUNT(*) FROM training_workouts WHERE tss_planned > 0")
+    total_planned = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM training_workouts WHERE tss_planned > 0 AND completed = true")
+    total_completed = cur.fetchone()[0]
+    cur.close(); conn2.close()
+    pct = (total_completed / total_planned * 100) if total_planned > 0 else 0
+    print(f"  Planned workouts: {total_planned}")
+    print(f"  Completed: {total_completed} ({pct:.1f}%)")
+
+    print("\n" + "═" * 55)
+
+
+def cmd_trends():
+    """Long-term trend analysis."""
+    import pandas as pd
+    import numpy as np
+
+    conn = get_db()
+
+    print("═" * 55)
+    print("    📈 LONG-TERM TRAINING TRENDS")
+    print("═" * 55)
+
+    # 1. FTP progression
+    print(f"\n{'─'*55}")
+    print("  ⚡ FTP PROGRESSION")
+    print(f"{'─'*55}")
+    ftp_df = pd.read_sql("SELECT test_date, ftp_watts, test_protocol, confidence FROM ftp_history ORDER BY test_date", conn)
+    if len(ftp_df) > 0:
+        for _, row in ftp_df.iterrows():
+            proto = f" ({row['test_protocol']})" if row['test_protocol'] else ""
+            conf = f" [{row['confidence']}]" if row['confidence'] else ""
+            print(f"    {row['test_date']}  {row['ftp_watts']}W{proto}{conf}")
+        if len(ftp_df) >= 2:
+            first, last = ftp_df.iloc[0], ftp_df.iloc[-1]
+            days = (last['test_date'] - first['test_date']).days
+            gain = last['ftp_watts'] - first['ftp_watts']
+            if days > 0:
+                rate = gain / (days / 7)
+                print(f"\n    Overall: {first['ftp_watts']}W -> {last['ftp_watts']}W ({gain:+d}W over {days} days, {rate:+.2f}W/week)")
+
+    # Infer from NP trends
+    np_df = pd.read_sql("""
+        SELECT date, AVG(np_actual) as avg_np FROM training_workouts 
+        WHERE np_actual IS NOT NULL AND completed = true
+        GROUP BY date ORDER BY date
+    """, conn)
+    if len(np_df) >= 14:
+        np_df['np_7d'] = np_df['avg_np'].astype(float).rolling(7, min_periods=3).mean()
+        recent = np_df.tail(30)
+        if len(recent) >= 2:
+            first_np = recent['np_7d'].dropna().iloc[0]
+            last_np = recent['np_7d'].dropna().iloc[-1]
+            trend = "↑ trending up" if last_np > first_np + 2 else ("↓ trending down" if last_np < first_np - 2 else "→ stable")
+            print(f"    NP trend (30d rolling): {first_np:.0f}W -> {last_np:.0f}W {trend}")
+
+    # 2. Training volume (weekly TSS, last 3 months)
+    print(f"\n{'─'*55}")
+    print("  📊 WEEKLY TRAINING VOLUME (last 12 weeks)")
+    print(f"{'─'*55}")
+    tss_df = pd.read_sql("""
+        SELECT date, COALESCE(SUM(tss_actual), 0) as tss, COUNT(*) FILTER (WHERE completed) as workouts
+        FROM training_workouts
+        WHERE date >= CURRENT_DATE - INTERVAL '84 days'
+        GROUP BY date ORDER BY date
+    """, conn)
+    if len(tss_df) > 0:
+        tss_df['date'] = pd.to_datetime(tss_df['date'])
+        tss_df['week'] = tss_df['date'].dt.isocalendar().week.astype(int)
+        tss_df['year'] = tss_df['date'].dt.isocalendar().year.astype(int)
+        weekly = tss_df.groupby(['year', 'week']).agg(
+            tss=('tss', 'sum'),
+            workouts=('workouts', 'sum'),
+            start=('date', 'min')
+        ).reset_index()
+        for _, row in weekly.iterrows():
+            tss_val = float(row['tss'])
+            bar = "█" * int(tss_val / 30)
+            print(f"    {row['start'].strftime('%b %d')}  TSS: {tss_val:5.0f} {bar} ({int(row['workouts'])} rides)")
+        avg_tss = float(weekly['tss'].mean())
+        print(f"\n    Avg weekly TSS: {avg_tss:.0f}")
+
+    # 3. Recovery trend
+    print(f"\n{'─'*55}")
+    print("  💚 RECOVERY TREND")
+    print(f"{'─'*55}")
+    rec_df = pd.read_sql("""
+        SELECT date, recovery_score, hrv_rmssd FROM whoop_recovery 
+        WHERE recovery_score IS NOT NULL ORDER BY date
+    """, conn)
+    if len(rec_df) >= 7:
+        rec_df['recovery_score'] = rec_df['recovery_score'].astype(float)
+        rec_df['hrv_rmssd'] = rec_df['hrv_rmssd'].astype(float)
+        rec_df['rec_7d'] = rec_df['recovery_score'].rolling(7, min_periods=3).mean()
+        rec_df['rec_30d'] = rec_df['recovery_score'].rolling(30, min_periods=7).mean()
+
+        recent = rec_df.tail(1).iloc[0]
+        month_ago = rec_df.iloc[-30] if len(rec_df) >= 30 else rec_df.iloc[0]
+        print(f"    Current 7-day avg: {recent['rec_7d']:.0f}%")
+        print(f"    Current 30-day avg: {recent['rec_30d']:.0f}%")
+        delta = recent['rec_7d'] - float(month_ago['rec_7d']) if pd.notna(month_ago['rec_7d']) else 0
+        trend = "↑ improving" if delta > 3 else ("↓ declining" if delta < -3 else "→ stable")
+        print(f"    30-day change: {delta:+.0f}% {trend}")
+
+    # 4. HRV trend
+    print(f"\n{'─'*55}")
+    print("  💓 HRV TREND")
+    print(f"{'─'*55}")
+    if len(rec_df) >= 7:
+        rec_df['hrv_7d'] = rec_df['hrv_rmssd'].rolling(7, min_periods=3).mean()
+        rec_df['hrv_30d'] = rec_df['hrv_rmssd'].rolling(30, min_periods=7).mean()
+        recent_hrv = rec_df.tail(1).iloc[0]
+        month_ago_hrv = rec_df.iloc[-30] if len(rec_df) >= 30 else rec_df.iloc[0]
+        print(f"    Current 7-day avg: {recent_hrv['hrv_7d']:.1f}ms")
+        print(f"    Current 30-day avg: {recent_hrv['hrv_30d']:.1f}ms")
+        hrv_delta = recent_hrv['hrv_7d'] - float(month_ago_hrv['hrv_7d']) if pd.notna(month_ago_hrv['hrv_7d']) else 0
+        trend = "↑ improving" if hrv_delta > 3 else ("↓ declining" if hrv_delta < -3 else "→ stable")
+        print(f"    30-day change: {hrv_delta:+.1f}ms {trend}")
+
+    # 5. Sleep trend
+    print(f"\n{'─'*55}")
+    print("  😴 SLEEP TREND")
+    print(f"{'─'*55}")
+    sleep_df = pd.read_sql("""
+        SELECT date, sleep_duration_min, sleep_score FROM whoop_recovery 
+        WHERE sleep_duration_min IS NOT NULL ORDER BY date
+    """, conn)
+    if len(sleep_df) >= 7:
+        sleep_df['hours'] = sleep_df['sleep_duration_min'].astype(float) / 60
+        sleep_df['hrs_7d'] = sleep_df['hours'].rolling(7, min_periods=3).mean()
+        sleep_df['score_7d'] = sleep_df['sleep_score'].astype(float).rolling(7, min_periods=3).mean()
+        recent_s = sleep_df.tail(1).iloc[0]
+        print(f"    7-day avg sleep: {recent_s['hrs_7d']:.1f} hrs")
+        print(f"    7-day avg sleep score: {recent_s['score_7d']:.0f}%")
+        overall_avg = sleep_df['hours'].mean()
+        print(f"    Overall avg: {overall_avg:.1f} hrs")
+
+    # 6. Workout adherence trend
+    print(f"\n{'─'*55}")
+    print("  ✅ WORKOUT ADHERENCE (last 12 weeks)")
+    print(f"{'─'*55}")
+    adh_df = pd.read_sql("""
+        SELECT date, 
+               CASE WHEN tss_planned > 0 THEN 1 ELSE 0 END as planned,
+               CASE WHEN tss_planned > 0 AND completed THEN 1 ELSE 0 END as done
+        FROM training_workouts
+        WHERE date >= CURRENT_DATE - INTERVAL '84 days'
+        ORDER BY date
+    """, conn)
+    if len(adh_df) > 0:
+        adh_df['date'] = pd.to_datetime(adh_df['date'])
+        adh_df['week'] = adh_df['date'].dt.isocalendar().week.astype(int)
+        adh_df['year'] = adh_df['date'].dt.isocalendar().year.astype(int)
+        weekly_adh = adh_df.groupby(['year', 'week']).agg(
+            planned=('planned', 'sum'),
+            done=('done', 'sum'),
+            start=('date', 'min')
+        ).reset_index()
+        for _, row in weekly_adh.iterrows():
+            pct = (row['done'] / row['planned'] * 100) if row['planned'] > 0 else 0
+            emoji = "✅" if pct >= 80 else ("⚠️" if pct >= 50 else "❌")
+            print(f"    {row['start'].strftime('%b %d')}  {int(row['done'])}/{int(row['planned'])} ({pct:.0f}%) {emoji}")
+
+    conn.close()
+    print("\n" + "═" * 55)
+
+
+def cmd_insights():
+    """Generate and store AI-driven insights from correlation and trend data."""
+    import pandas as pd
+    import numpy as np
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Create insights table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS training_insights (
+            id SERIAL PRIMARY KEY,
+            date DATE NOT NULL,
+            insight_type VARCHAR(50),
+            insight_text TEXT,
+            confidence VARCHAR(10),
+            data_points INTEGER,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
+    conn.commit()
+
+    # Load data
+    df = pd.read_sql("""
+        SELECT dp.*, 
+               LAG(dp.strain, 1) OVER (ORDER BY dp.date) as prev_strain
+        FROM daily_performance dp ORDER BY dp.date
+    """, conn)
+
+    both = df.dropna(subset=['recovery_score', 'workout_quality']).copy()
+    for col in ['recovery_score', 'workout_quality', 'hrv_rmssd', 'sleep_hours', 'sleep_score', 'strain']:
+        both[col] = pd.to_numeric(both[col], errors='coerce')
+    both['prev_strain'] = pd.to_numeric(both['prev_strain'], errors='coerce')
+
+    n = len(both)
+    today = date.today().isoformat()
+    insights = []
+
+    # 1. Recovery-quality relationship
+    if n >= 20:
+        green = both[both['recovery_score'] > 66]
+        red = both[both['recovery_score'] < 33]
+        yellow = both[(both['recovery_score'] >= 33) & (both['recovery_score'] <= 66)]
+        corr = both[['recovery_score', 'workout_quality']].corr().iloc[0, 1]
+        
+        if len(green) >= 5 and len(red) >= 5:
+            diff = green['workout_quality'].mean() - red['workout_quality'].mean()
+            if abs(diff) > 3:
+                direction = "higher" if diff > 0 else "lower"
+                text = (f"Your data shows green recovery days produce {direction} workout quality "
+                       f"({green['workout_quality'].mean():.1f} vs {red['workout_quality'].mean():.1f}, "
+                       f"correlation r={corr:.2f}). Based on {n} days of data.")
+            else:
+                text = (f"Your data shows recovery score has minimal impact on workout quality "
+                       f"(green: {green['workout_quality'].mean():.1f}, red: {red['workout_quality'].mean():.1f}, "
+                       f"r={corr:.2f}). You perform consistently regardless of recovery. Based on {n} days.")
+            conf = "high" if n >= 60 else ("medium" if n >= 30 else "low")
+            insights.append(("recovery_correlation", text, conf, n))
+
+    # 2. HRV insight
+    good = both[both['workout_quality'] >= 80]
+    poor = both[both['workout_quality'] < 80]
+    if len(good) >= 10:
+        threshold = good['hrv_rmssd'].quantile(0.25)
+        text = (f"Your best workouts (quality >= 80, n={len(good)}) typically occur when HRV is above "
+               f"{threshold:.0f}ms. Average HRV on good days: {good['hrv_rmssd'].mean():.0f}ms "
+               f"vs other days: {poor['hrv_rmssd'].mean():.0f}ms.")
+        insights.append(("hrv_threshold", text, "medium", len(good)))
+
+    # 3. Sleep insight
+    sleep_data = both.dropna(subset=['sleep_hours'])
+    if len(sleep_data) >= 20:
+        corr_s = sleep_data[['sleep_hours', 'workout_quality']].corr().iloc[0, 1]
+        avg_sleep = sleep_data['sleep_hours'].mean()
+        text = (f"Sleep hours correlate with workout quality at r={corr_s:.2f} (n={len(sleep_data)}). "
+               f"Your average sleep is {avg_sleep:.1f} hrs. "
+               f"Nights with 7.5+ hrs show avg quality of "
+               f"{sleep_data[sleep_data['sleep_hours'] >= 7.5]['workout_quality'].mean():.1f} "
+               f"vs {sleep_data[sleep_data['sleep_hours'] < 6]['workout_quality'].mean():.1f} on <6 hr nights.")
+        insights.append(("sleep_impact", text, "medium" if abs(corr_s) > 0.2 else "low", len(sleep_data)))
+
+    # 4. Consistency insight
+    cur.execute("SELECT COUNT(*) FROM training_workouts WHERE tss_planned > 0")
+    planned = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM training_workouts WHERE tss_planned > 0 AND completed = true")
+    completed = cur.fetchone()[0]
+    pct = (completed / planned * 100) if planned > 0 else 0
+    text = f"Workout completion rate: {pct:.1f}% ({completed}/{planned} planned workouts completed over full history)."
+    insights.append(("consistency", text, "high", planned))
+
+    # 5. Best conditions insight
+    top20 = both.nlargest(20, 'workout_quality')
+    if len(top20) >= 10:
+        text = (f"Your top 20 workout days averaged: recovery {top20['recovery_score'].mean():.0f}%, "
+               f"HRV {top20['hrv_rmssd'].mean():.0f}ms, sleep {top20['sleep_hours'].mean():.1f} hrs, "
+               f"sleep score {top20['sleep_score'].mean():.0f}%.")
+        insights.append(("best_conditions", text, "medium", 20))
+
+    # 6. Trend insight (FTP)
+    ftp_rows = pd.read_sql("SELECT test_date, ftp_watts FROM ftp_history ORDER BY test_date", conn)
+    if len(ftp_rows) >= 2:
+        first, last = ftp_rows.iloc[0], ftp_rows.iloc[-1]
+        days_elapsed = (last['test_date'] - first['test_date']).days
+        gain = last['ftp_watts'] - first['ftp_watts']
+        rate = gain / max(1, days_elapsed / 7)
+        target_gap = 300 - last['ftp_watts']
+        weeks_left = max(1, (date(2026, 12, 31) - date.today()).days / 7)
+        needed = target_gap / weeks_left
+        text = (f"FTP has moved from {first['ftp_watts']}W to {last['ftp_watts']}W "
+               f"({gain:+d}W, {rate:+.2f}W/week). Need {needed:.2f}W/week to reach 300W by end of 2026.")
+        insights.append(("ftp_trend", text, "high", len(ftp_rows)))
+
+    # Store insights
+    cur.execute("DELETE FROM training_insights WHERE date = %s", (today,))
+    for itype, text, conf, n_pts in insights:
+        cur.execute("""
+            INSERT INTO training_insights (date, insight_type, insight_text, confidence, data_points)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (today, itype, text, conf, n_pts))
+    conn.commit()
+
+    # Display
+    print("═" * 55)
+    print("    💡 TRAINING INSIGHTS")
+    print("═" * 55)
+    print(f"\n  Generated {len(insights)} insights from your data:\n")
+    for i, (itype, text, conf, n_pts) in enumerate(insights, 1):
+        conf_emoji = "🟢" if conf == "high" else ("🟡" if conf == "medium" else "🔴")
+        print(f"  {i}. [{itype}] {conf_emoji} {conf} confidence")
+        # Word wrap the text
+        words = text.split()
+        line = "     "
+        for w in words:
+            if len(line) + len(w) + 1 > 55:
+                print(line)
+                line = "     " + w
+            else:
+                line += " " + w if line.strip() else "     " + w
+        if line.strip():
+            print(line)
+        print()
+
+    print("═" * 55)
+    cur.close()
+    conn.close()
+    return insights
+
+
+def get_top_insight():
+    """Get the most recent top insight for status display."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT insight_type, insight_text, confidence 
+            FROM training_insights 
+            ORDER BY created_at DESC LIMIT 1
+        """)
+        row = cur.fetchone()
+        cur.close(); conn.close()
+        return row
+    except Exception:
+        return None
+
+
 # ── CLI ───────────────────────────────────────────────────────────
 
 def main():
@@ -1449,6 +1943,10 @@ def main():
     p_weather = sub.add_parser("weather", help="Weather and ride kit recommendation")
     p_weather.add_argument("location", nargs="?", default="Brooklyn, NY", help="Location (default: Brooklyn, NY)")
 
+    sub.add_parser("correlate", help="Recovery-training correlation analysis")
+    sub.add_parser("trends", help="Long-term training trends")
+    sub.add_parser("insights", help="Generate AI-driven training insights")
+
     args = parser.parse_args()
 
     if args.command == "sync-whoop":
@@ -1471,6 +1969,12 @@ def main():
         strava_events()
     elif args.command == "weather":
         weather(args.location)
+    elif args.command == "correlate":
+        cmd_correlate()
+    elif args.command == "trends":
+        cmd_trends()
+    elif args.command == "insights":
+        cmd_insights()
     else:
         parser.print_help()
 
