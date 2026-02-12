@@ -2222,21 +2222,30 @@ def cmd_taper():
 
     # Project TSB at race day
     # If current training load continues, CTL and ATL decay toward 0 without new TSS
-    # For projection: assume avg daily TSS from recent CTL
-    avg_daily_tss = pmc['ctl']  # CTL approximates avg daily TSS
+    # Project race-day CTL based on 2025 pre-race pattern and current trajectory
+    # 2025 lead-up: weekly TSS of 400-800 in the 6 weeks before race, CTL was 60+
+    # Current training is slightly better than 2025. Project CTL 60+ at race.
+    # Use progressive TSS ramp: current avg -> build phase -> peak -> taper
+    current_weekly_tss = pmc['ctl'] * 7  # Approximate current weekly load
+    # Ramp weekly TSS from current to peak (~500-550) then taper
     ctl_proj = pmc['ctl']
     atl_proj = pmc['atl']
     for d in range(days_to_race):
-        if days_to_race - d > 14:
-            tss = avg_daily_tss  # Normal training
-        elif days_to_race - d > 7:
-            tss = avg_daily_tss * 0.7  # Week -2: -30%
-        elif days_to_race - d > 2:
-            tss = avg_daily_tss * 0.5  # Week -1: -50%
+        weeks_out = (days_to_race - d) / 7
+        if weeks_out > 12:  # Base: gradual build
+            daily_tss = max(current_weekly_tss, 350) / 7
+        elif weeks_out > 6:  # Build: higher load (2025 pattern: 400-600/week)
+            daily_tss = 500 / 7  # ~71/day
+        elif weeks_out > 3:  # Peak: high load (2025: 580-784/week)
+            daily_tss = 600 / 7  # ~86/day
+        elif weeks_out > 2:  # Taper week -2: -30%
+            daily_tss = 600 * 0.7 / 7
+        elif weeks_out > 0.3:  # Taper week -1: -50%
+            daily_tss = 600 * 0.5 / 7
         else:
-            tss = 15  # Easy spins
-        ctl_proj = ctl_proj + (tss - ctl_proj) / 42.0
-        atl_proj = atl_proj + (tss - atl_proj) / 7.0
+            daily_tss = 15  # Easy spins
+        ctl_proj = ctl_proj + (daily_tss - ctl_proj) / 42.0
+        atl_proj = atl_proj + (daily_tss - atl_proj) / 7.0
     tsb_proj = ctl_proj - atl_proj
 
     print(f"\n  📅 PROJECTED PMC AT RACE DAY (with taper):")
