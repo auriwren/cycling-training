@@ -1929,13 +1929,15 @@ VATTERN_SEGMENTS = [
 # Race start: 03:20 AM June 13, 2026
 RACE_START_TIME = "03:20"
 
-# Max 4 stops. Jönköping (~km 170 / mile 106) is the hot food stop.
-# Fueling: Formula 369 in bottles (2 cages + 1 flexible), gels to supplement, pickles/bread/blueberry soup at stops
+# Max 4 stops from 9 available depots. Thousands of participants = expect crowds.
+# Realistic stop times: normal 10-12 min, hot food 20-25 min.
+# Depots: Ödeshög (47km), Ölmstad (83km), Jönköping (104km), Fagerhult (133km),
+#          Hjo (171km), Karlsborg (204km), Boviken (225km), Askersund (256km), Godegård (284km)
 REST_STOPS = [
-    {"km": 80, "mi": 50, "name": "Stop 1", "action": "Refill F369 bottles. Pickles + bread. 3-5 min max."},
-    {"km": 170, "mi": 106, "name": "Jönköping (hot food)", "action": "Hot meal (meatballs/mashed). Blueberry soup. Refill bottles. 10-15 min."},
-    {"km": 240, "mi": 149, "name": "Stop 3", "action": "Refill F369 bottles. Pickles + bread. Quick gel. 3-5 min."},
-    {"km": 290, "mi": 180, "name": "Stop 4", "action": "Last refill. Gel + whatever looks good. Push to finish."},
+    {"km": 83, "mi": 52, "name": "Ölmstad (83km)", "stop_min": 10, "action": "Refill F369 bottles. Pickles + bread. ~10 min."},
+    {"km": 104, "mi": 65, "name": "Jönköping (104km)", "stop_min": 22, "action": "HOT FOOD: meatballs + mashed potatoes. Blueberry soup. Refill bottles. ~20-25 min."},
+    {"km": 204, "mi": 127, "name": "Karlsborg (204km)", "stop_min": 12, "action": "Refill F369 bottles. Pickles + bread. Stretch. ~10-12 min."},
+    {"km": 284, "mi": 176, "name": "Godegård (284km)", "stop_min": 10, "action": "Last refill. Quick fuel. Push to finish. ~10 min."},
 ]
 
 
@@ -2001,20 +2003,23 @@ def cmd_race_plan():
         print(f"  📊 PACING @ {ftp_label}: {ftp_val}W")
         print(f"{'─'*60}")
 
-        # Overall target NP range
-        np_low = round(ftp_val * 0.55)
-        np_high = round(ftp_val * 0.63)
-        print(f"  Target NP range: {np_low}-{np_high}W (55-63% FTP)")
-        print(f"  Climb cap: {round(ftp_val * 0.72)}W (72% FTP) | Hard limit: {round(ftp_val * 0.75)}W (75%)")
+        # Overall target NP range: 175-180W target based on athlete's race goals
+        # At projected 277W FTP this is 63-65% FTP
+        np_target_low = 175
+        np_target_high = 180
+        np_pct_low = np_target_low / ftp_val if ftp_val else 0
+        np_pct_high = np_target_high / ftp_val if ftp_val else 0
+        print(f"  Target NP: {np_target_low}-{np_target_high}W ({np_pct_low*100:.0f}-{np_pct_high*100:.0f}% FTP)")
+        print(f"  Climb cap: {round(ftp_val * 0.75)}W (75% FTP) | Hard limit: {round(ftp_val * 0.80)}W (80%)")
 
         # Segment breakdown
         print(f"\n  {'Segment':<38} {'Km':>7} {'%FTP':>7} {'Watts':>7}")
         print("  " + "-" * 62)
 
         segments_pacing = [
-            ("First 100km (discipline!)", "0-100", 0.57, 0.60),
-            ("Km 100-230 (rhythm)", "100-230", 0.60, 0.65),
-            ("Km 230-315 (finish strong)", "230-315", 0.65, 0.70),
+            ("First 100km (discipline!)", "0-100", 0.60, 0.63),
+            ("Km 100-230 (rhythm)", "100-230", 0.63, 0.67),
+            ("Km 230-315 (finish strong)", "230-315", 0.67, 0.72),
         ]
         for seg_name, km_range, pct_low, pct_high in segments_pacing:
             w_low = round(ftp_val * pct_low)
@@ -2023,22 +2028,23 @@ def cmd_race_plan():
             print(f"  {seg_name:<38} {km_range:>7} {pct_str:>7} {w_low}-{w_high:>3}W")
 
         # Flat/climb targets
-        flat_low = round(ftp_val * 0.57)
-        flat_high = round(ftp_val * 0.62)
-        climb_max = round(ftp_val * 0.72)
-        print(f"\n  Flat sections: {flat_low}-{flat_high}W (57-62% FTP)")
-        print(f"  Climbs: up to {climb_max}W (72% FTP max)")
+        flat_low = round(ftp_val * 0.62)
+        flat_high = round(ftp_val * 0.65)
+        climb_max = round(ftp_val * 0.75)
+        print(f"\n  Flat sections: {flat_low}-{flat_high}W (62-65% FTP)")
+        print(f"  Climbs: up to {climb_max}W (75% FTP max)")
 
-        # Estimated TSS
-        # TSS = (duration_seconds * NP * IF) / (FTP * 3600) * 100
-        # For ~10 hours at ~59% FTP: IF = 0.59, NP = 0.59*FTP
-        est_if = 0.59
+        # Estimated TSS based on 175-180W NP target
+        avg_np = (np_target_low + np_target_high) / 2
+        est_if = avg_np / ftp_val if ftp_val else 0.65
         est_duration_hrs = RACE_TARGET_HOURS
         est_tss = round(est_if * est_if * est_duration_hrs * 100)
-        print(f"\n  Estimated TSS: ~{est_tss} (IF ~{est_if:.2f} over {est_duration_hrs:.0f}hrs)")
-        est_time_h = int(RACE_DISTANCE_KM / RACE_TARGET_AVG_KPH)
-        est_time_m = int((RACE_DISTANCE_KM / RACE_TARGET_AVG_KPH - est_time_h) * 60)
-        print(f"  Estimated ride time: ~{est_time_h}h{est_time_m:02d}m (at {RACE_TARGET_AVG_KPH} kph avg)")
+        # Total time includes ~54 min of stops
+        total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
+        ride_time_hrs = RACE_TARGET_HOURS - total_stop_min / 60
+        print(f"\n  Estimated TSS: ~{est_tss} (IF ~{est_if:.2f} over {ride_time_hrs:.1f}hrs riding)")
+        print(f"  Stop time: ~{total_stop_min} min across 4 stops")
+        print(f"  Total elapsed: ~{RACE_TARGET_HOURS:.0f}hrs (ride + stops)")
 
     # Course profile
     print(f"\n{'─'*60}")
@@ -2064,20 +2070,29 @@ def cmd_race_plan():
     print("  AT STOPS: Pickles (sodium), bread buns, blueberry soup")
     print("  Jönköping: Hot meal (Swedish meatballs, mashed potatoes)")
     print("  Hydration: 16-24 oz/hour depending on temp.")
-    print(f"\n  {'Stop':>6}  {'Mile':>5}  {'Elapsed':>8}  {'Clock':>7}  {'Action'}")
-    print("  " + "-" * 72)
+    total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
+    print(f"  Total stop time budget: ~{total_stop_min} min")
+    print(f"\n  {'Stop':<25} {'Mi':>4} {'Elapsed':>8} {'Clock':>7} {'Stop':>5} {'Action'}")
+    print("  " + "-" * 85)
+    cumulative_stop_min = 0
     for stop in REST_STOPS:
-        est_hrs = stop["km"] / RACE_TARGET_AVG_KPH
-        h = int(est_hrs)
-        m = int((est_hrs - h) * 60)
+        # Riding time to this point (excluding previous stop time)
+        ride_hrs = stop["km"] / RACE_TARGET_AVG_KPH
+        # Add cumulative stop time from previous stops
+        total_elapsed_min = ride_hrs * 60 + cumulative_stop_min
+        total_elapsed_hrs = total_elapsed_min / 60
+        h = int(total_elapsed_hrs)
+        m = int((total_elapsed_hrs - h) * 60)
         # Clock time based on 03:20 start
-        clock_h = (3 + h + (20 + m) // 60) % 24
-        clock_m = (20 + m) % 60
+        clock_total_min = 3 * 60 + 20 + total_elapsed_min
+        clock_h = int(clock_total_min // 60) % 24
+        clock_m = int(clock_total_min % 60)
         am_pm = "AM" if clock_h < 12 else "PM"
         clock_h_12 = clock_h if clock_h <= 12 else clock_h - 12
         if clock_h_12 == 0:
             clock_h_12 = 12
-        print(f"  {stop['name']:>20}  {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm}  {stop['action']}")
+        print(f"  {stop['name']:<25} {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm} {stop['stop_min']:>3}min  {stop['action']}")
+        cumulative_stop_min += stop["stop_min"]
 
     print(f"\n  Pre-dawn: Start 03:20 AM, sunrise ~03:51 AM. Only ~30 min in the dark.")
     print("  Lights mandatory at start but you'll have daylight by mile 10.")
@@ -2343,9 +2358,7 @@ def cmd_race_countdown():
 
     # FTP summary
     print(f"\n  ⚡ FTP: {current_ftp}W now -> ~{projected_ftp}W projected at race")
-    target_np_now = f"{round(current_ftp * 0.55)}-{round(current_ftp * 0.63)}W"
-    target_np_proj = f"{round(projected_ftp * 0.55)}-{round(projected_ftp * 0.63)}W"
-    print(f"  Target NP: {target_np_now} (current) | {target_np_proj} (projected)")
+    print(f"  Target NP: 175-180W")
 
     # PMC summary
     print(f"\n  📊 Fitness: CTL {pmc['ctl']:.1f} | Fatigue: ATL {pmc['atl']:.1f} | Form: TSB {pmc['tsb']:+.1f}")
