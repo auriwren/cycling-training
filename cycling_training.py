@@ -969,22 +969,74 @@ def strava_refresh_token() -> Optional[str]:
     return new_access
 
 
+def strava_api_get(url, token, max_retries=5):
+    """Make a Strava API GET request with exponential backoff and rate limit handling.
+
+    Returns the Response object on success, raises on exhausted retries.
+    Handles: rate limit headers, HTTP 429, HTTP 401 (token refresh), other errors.
+    """
+    auth_retried = False
+    for attempt in range(max_retries):
+        try:
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+        except requests.RequestException as e:
+            wait = 5 * (2 ** attempt)
+            print(f"  ⏳ Request error ({e}), retrying in {wait}s (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait)
+            continue
+
+        # Check rate limit headers proactively
+        usage = resp.headers.get("X-RateLimit-Usage", "")
+        if usage:
+            parts = usage.split(",")
+            if len(parts) >= 1:
+                try:
+                    short_usage = int(parts[0])
+                    if short_usage > 90:
+                        print(f"  ⏸️  Rate limit approaching ({short_usage}/100), pausing 15 min...")
+                        time.sleep(900)
+                except ValueError:
+                    pass
+
+        if resp.status_code == 200:
+            return resp
+
+        if resp.status_code == 429:
+            wait = 60 * (2 ** attempt)
+            print(f"  ⏳ Rate limited (429), retrying in {wait}s (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait)
+            continue
+
+        if resp.status_code == 401 and not auth_retried:
+            auth_retried = True
+            new_token = strava_refresh_token()
+            if new_token:
+                token = new_token
+                continue  # retry with new token, don't count as attempt
+            else:
+                raise RuntimeError("Strava auth failed: no refresh token available")
+
+        if resp.status_code == 404:
+            return resp  # Let caller handle 404
+
+        # Other errors: exponential backoff
+        wait = 5 * (2 ** attempt)
+        print(f"  ⏳ HTTP {resp.status_code}, retrying in {wait}s (attempt {attempt+1}/{max_retries})")
+        time.sleep(wait)
+
+    raise RuntimeError(f"Strava API request failed after {max_retries} retries: {url}")
+
+
 def strava_api(endpoint, token):
-    """Call Strava API with auto-retry on 401."""
+    """Call Strava API endpoint, return parsed JSON or None."""
     url = f"https://www.strava.com/api/v3{endpoint}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
-    if resp.status_code == 401:
-        new_token = strava_refresh_token()
-        if new_token:
-            resp = requests.get(url, headers={"Authorization": f"Bearer {new_token}"}, timeout=15)
-        else:
-            print("❌ Strava auth failed. Token may be expired with no refresh token.")
-            return None
+    try:
+        resp = strava_api_get(url, token)
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        return None
     if resp.status_code == 404:
         return []  # Club may not have events endpoint
-    if resp.status_code != 200:
-        print(f"⚠️  Strava API {endpoint}: HTTP {resp.status_code}")
-        return None
     return resp.json()
 
 
@@ -1056,7 +1108,6 @@ def sync_strava_zones(days: int = 365) -> None:
         print("❌ No Strava access token found")
         return
 
-    headers = {"Authorization": f"Bearer {token}"}
     cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
 
     # Get existing activity IDs to skip
@@ -1071,28 +1122,16 @@ def sync_strava_zones(days: int = 365) -> None:
     all_activities = []
     page = 1
     while True:
-        resp = requests.get(
-            "https://www.strava.com/api/v3/athlete/activities",
-            headers=headers,
-            params={"per_page": 200, "page": page, "after": cutoff},
-            timeout=15,
-        )
-        if resp.status_code == 401:
-            new_token = strava_refresh_token()
-            if new_token:
-                headers = {"Authorization": f"Bearer {new_token}"}
-                resp = requests.get(
-                    "https://www.strava.com/api/v3/athlete/activities",
-                    headers=headers,
-                    params={"per_page": 200, "page": page, "after": cutoff},
-                    timeout=15,
-                )
-            else:
-                print("❌ Auth failed")
-                return
-        if resp.status_code != 200:
-            print(f"❌ Activity list failed: {resp.status_code}")
+        url = f"https://www.strava.com/api/v3/athlete/activities?per_page=200&page={page}&after={cutoff}"
+        try:
+            resp = strava_api_get(url, token)
+        except RuntimeError as e:
+            print(f"❌ {e}")
             return
+        # Update token in case it was refreshed
+        auth_header = resp.request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
 
         activities = resp.json()
         if not activities:
@@ -1102,7 +1141,7 @@ def sync_strava_zones(days: int = 365) -> None:
         all_activities.extend(rides)
         print(f"  Page {page}: {len(rides)} rides ({len(activities)} total)")
         page += 1
-        time.sleep(1)
+        time.sleep(0.5)
 
     # Filter out already-synced
     to_fetch = [a for a in all_activities if a["id"] not in existing]
@@ -1112,54 +1151,22 @@ def sync_strava_zones(days: int = 365) -> None:
         print("✅ All activities already synced")
         return
 
-    # Fetch zones for each activity with rate limiting
+    # Fetch zones for each activity
     conn = get_db()
     synced = 0
     errors = 0
-    request_count = 0
 
     for i, act in enumerate(to_fetch):
         aid = act["id"]
         name = act.get("name", "")
         act_date = act.get("start_date_local", "")[:10]
 
-        # Rate limit check
-        request_count += 1
-        if request_count % 80 == 0:
-            print(f"  ⏸️  Rate limit pause (80 requests)... waiting 60s")
-            time.sleep(60)
-
         try:
-            resp = requests.get(
-                f"https://www.strava.com/api/v3/activities/{aid}/zones",
-                headers=headers,
-                timeout=15,
-            )
-
-            # Check rate limit headers
-            usage = resp.headers.get("X-RateLimit-Usage", "")
-            if usage:
-                parts = usage.split(",")
-                if len(parts) >= 1:
-                    short_usage = int(parts[0])
-                    if short_usage >= 90:
-                        print(f"  ⏸️  Approaching rate limit ({short_usage}/100), pausing 15 min...")
-                        time.sleep(900)
-
-            if resp.status_code == 401:
-                new_token = strava_refresh_token()
-                if new_token:
-                    headers = {"Authorization": f"Bearer {new_token}"}
-                    resp = requests.get(f"https://www.strava.com/api/v3/activities/{aid}/zones", headers=headers, timeout=15)
-                else:
-                    print("❌ Auth failed during zone fetch")
-                    break
-
-            if resp.status_code != 200:
-                print(f"  ⚠️  Zones failed for {aid} ({name}): HTTP {resp.status_code}")
-                errors += 1
-                time.sleep(1)
-                continue
+            resp = strava_api_get(f"https://www.strava.com/api/v3/activities/{aid}/zones", token)
+            # Update token in case it was refreshed
+            auth_header = resp.request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
 
             zones_data = resp.json()
 
@@ -1172,7 +1179,7 @@ def sync_strava_zones(days: int = 365) -> None:
 
             if not power_zones:
                 # No power data for this activity (maybe no power meter)
-                time.sleep(1)
+                time.sleep(0.5)
                 continue
 
             # Map buckets to coach zones
@@ -1210,11 +1217,14 @@ def sync_strava_zones(days: int = 365) -> None:
             if synced % 10 == 0 or synced == 1:
                 print(f"  [{synced}/{len(to_fetch)}] {act_date} {name[:40]}")
 
+        except RuntimeError as e:
+            print(f"  ❌ Strava API error for {aid}: {e}")
+            errors += 1
         except Exception as e:
             print(f"  ❌ Error for {aid}: {e}")
             errors += 1
 
-        time.sleep(1)  # Rate limit courtesy
+        time.sleep(0.5)  # Polite delay between requests
 
     conn.close()
 
