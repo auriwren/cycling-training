@@ -169,7 +169,7 @@ def generate_dashboard(upload: bool = False) -> None:
     tss_planned_wk = sum(float(w["tss_planned"] or 0) for w in week_workouts)
     progress_wk = int(tss_actual_wk / tss_planned_wk * 100) if tss_planned_wk > 0 else 0
 
-    hours_wk = sum(float(w["duration_actual_min"] or 0) for w in completed_wk) / 60
+    hours_wk = sum(float(w["duration_actual_min"] or w["duration_planned_min"] or 0) for w in completed_wk) / 60
     ifs_wk = [float(w["if_actual"]) for w in completed_wk if w["if_actual"]]
     avg_if_wk = sum(ifs_wk) / len(ifs_wk) if ifs_wk else 0
     peak_if_wk = max(ifs_wk) if ifs_wk else 0

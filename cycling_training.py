@@ -548,13 +548,13 @@ def populate_daily_performance(days: int = 7) -> None:
                     FROM whoop_recovery w
                     FULL OUTER JOIN (
                         SELECT date, SUM(tss_planned) as tss_planned, SUM(tss_actual) as tss_actual,
-                            CASE WHEN SUM(duration_actual_min) > 0
-                                THEN SUM(if_actual * duration_actual_min) / SUM(duration_actual_min)
+                            CASE WHEN SUM(COALESCE(duration_actual_min, duration_planned_min)) > 0
+                                THEN SUM(if_actual * COALESCE(duration_actual_min, duration_planned_min)) / SUM(COALESCE(duration_actual_min, duration_planned_min))
                                 ELSE AVG(if_actual) END as if_actual,
-                            CASE WHEN SUM(duration_actual_min) > 0
-                                THEN (SUM(np_actual * duration_actual_min) / SUM(duration_actual_min))::int
+                            CASE WHEN SUM(COALESCE(duration_actual_min, duration_planned_min)) > 0
+                                THEN (SUM(np_actual * COALESCE(duration_actual_min, duration_planned_min)) / SUM(COALESCE(duration_actual_min, duration_planned_min)))::int
                                 ELSE AVG(np_actual)::int END as np_actual,
-                            SUM(duration_actual_min) as duration_actual_min,
+                            SUM(COALESCE(duration_actual_min, duration_planned_min)) as duration_actual_min,
                             MAX(workout_type) as workout_type, AVG(workout_quality) as workout_quality
                         FROM training_workouts WHERE date >= %s GROUP BY date
                     ) t ON w.date = t.date
@@ -855,8 +855,8 @@ def _post_ride_inner(conn: Any, target_date: str) -> None:
                 print(f" | Max HR: {float(w['max_hr']):.0f}bpm", end="")
             print()
 
-        if w['duration_actual_min']:
-            dur = int(w['duration_actual_min'])
+        if w['duration_actual_min'] or w['duration_planned_min']:
+            dur = int(w['duration_actual_min'] or w['duration_planned_min'])
             print(f"  Duration: {dur // 60}h{dur % 60:02d}m")
 
         # Workout quality
