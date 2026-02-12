@@ -73,11 +73,11 @@ def whoop_refresh():
 def whoop_api(endpoint, token):
     """Call Whoop API, retry once on 401."""
     url = f"https://api.prod.whoop.com/developer{endpoint}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
     if resp.status_code == 401:
         if whoop_refresh():
             token = load_env(WHOOP_ENV).get("WHOOP_ACCESS_TOKEN", "")
-            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
     resp.raise_for_status()
     return resp.json()
 
@@ -89,13 +89,30 @@ def sync_whoop(days=7):
     env = load_env(WHOOP_ENV)
     token = env.get("WHOOP_ACCESS_TOKEN", "")
 
-    limit = min(days + 1, 25)
+    # Fetch all three datasets using v2 pagination (loop for nextToken)
+    def _fetch_all_pages(endpoint, token):
+        all_records = []
+        url = endpoint
+        while True:
+            try:
+                data = whoop_api(url, token)
+            except Exception as e:
+                print(f"❌ Whoop API error: {e}")
+                return None
+            all_records.extend(data.get("records", []))
+            next_token = data.get("next_token") or data.get("nextToken")
+            if not next_token:
+                break
+            separator = "&" if "?" in endpoint else "?"
+            url = f"{endpoint}{separator}nextToken={next_token}"
+        return {"records": all_records}
 
-    # Fetch all three datasets using v2 pagination
     try:
-        recovery_data = whoop_api(f"/v2/recovery?limit={limit}", token)
-        sleep_data = whoop_api(f"/v2/activity/sleep?limit={limit}", token)
-        cycle_data = whoop_api(f"/v2/cycle?limit={limit}", token)
+        recovery_data = _fetch_all_pages(f"/v2/recovery?limit=25", token)
+        sleep_data = _fetch_all_pages(f"/v2/activity/sleep?limit=25", token)
+        cycle_data = _fetch_all_pages(f"/v2/cycle?limit=25", token)
+        if recovery_data is None or sleep_data is None or cycle_data is None:
+            return False
     except Exception as e:
         print(f"❌ Whoop API error: {e}")
         return False
@@ -198,6 +215,7 @@ def tp_get_token():
     resp = requests.get(
         "https://tpapi.trainingpeaks.com/users/v3/token",
         headers={"Cookie": f"Production_tpAuth={cookie}", "Accept": "application/json"},
+        timeout=15,
     )
     if resp.status_code != 200:
         print(f"❌ TP token exchange failed: HTTP {resp.status_code}")
@@ -226,7 +244,7 @@ def tp_get_token():
 
 def calc_workout_quality(tss_planned, tss_actual, if_planned, if_actual):
     """Calculate workout quality score (0-100)."""
-    if not all([tss_planned, tss_actual, if_planned, if_actual]):
+    if any(v is None for v in [tss_planned, tss_actual, if_planned, if_actual]):
         return None
     if tss_planned == 0 or if_planned == 0:
         return None
@@ -245,21 +263,25 @@ def sync_tp(days=7):
     env = load_env(TP_ENV)
     user_id = env.get("TP_USER_ID", "2100281")
 
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    # Pull through end of current week (Sunday) to include upcoming planned workouts
+    today = datetime.now()
+    days_until_sunday = 6 - today.weekday()
+    end_dt = today + timedelta(days=max(days_until_sunday, 0))
+    end_date = end_dt.strftime("%Y-%m-%d")
+    start_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
     url = f"https://tpapi.trainingpeaks.com/fitness/v6/athletes/{user_id}/workouts/{start_date}/{end_date}"
 
     resp = requests.get(url, headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
-    })
+    }, timeout=15)
     if resp.status_code == 401:
         # Clear cache and retry
         TP_TOKEN_CACHE.unlink(missing_ok=True)
         token = tp_get_token()
         if not token:
             return False
-        resp = requests.get(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        resp = requests.get(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=15)
 
     if resp.status_code != 200:
         print(f"❌ TP API error: HTTP {resp.status_code}")
@@ -363,7 +385,12 @@ def populate_daily_performance(days=7):
         FROM whoop_recovery w
         FULL OUTER JOIN (
             SELECT date, SUM(tss_planned) as tss_planned, SUM(tss_actual) as tss_actual,
-                AVG(if_actual) as if_actual, AVG(np_actual)::int as np_actual,
+                CASE WHEN SUM(duration_actual_min) > 0
+                    THEN SUM(if_actual * duration_actual_min) / SUM(duration_actual_min)
+                    ELSE AVG(if_actual) END as if_actual,
+                CASE WHEN SUM(duration_actual_min) > 0
+                    THEN (SUM(np_actual * duration_actual_min) / SUM(duration_actual_min))::int
+                    ELSE AVG(np_actual)::int END as np_actual,
                 SUM(duration_actual_min) as duration_actual_min,
                 MAX(workout_type) as workout_type, AVG(workout_quality) as workout_quality
             FROM training_workouts WHERE date >= %s GROUP BY date
@@ -392,308 +419,6 @@ def sync_all(days=7):
     sync_whoop(days)
     sync_tp(days)
     populate_daily_performance(days)
-
-
-# ── PMC (Performance Management Chart) ────────────────────────────
-
-def calc_pmc():
-    """Calculate CTL/ATL/TSB from all historical TSS data."""
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Get all daily TSS (sum per day for multi-workout days)
-    cur.execute("""
-        SELECT date, COALESCE(SUM(tss_actual), 0) as daily_tss
-        FROM training_workouts
-        GROUP BY date ORDER BY date
-    """)
-    rows = cur.fetchall()
-    if not rows:
-        print("No workout data found.")
-        conn.close()
-        return
-
-    # Fill gaps between first and last date
-    first_date = rows[0][0]
-    last_date = rows[-1][0]
-    tss_by_date = {r[0]: float(r[1]) for r in rows}
-
-    # Check for a manually anchored baseline (e.g. from TrainingPeaks screenshot)
-    cur.execute("SELECT ctl, atl FROM training_load WHERE ctl IS NOT NULL ORDER BY date DESC LIMIT 1")
-    anchor = cur.fetchone()
-    # Use anchor if our calculated values would be far off (first run after seeding)
-    ctl, atl = 0.0, 0.0
-    ctl_tau, atl_tau = 42, 7
-    
-    # If we have an anchor and this is a recalc, scale our starting point
-    # so that the most recent day lands close to the anchor
-    # We do a two-pass approach: first pass to see where we'd end up, 
-    # then adjust starting point
-    if anchor and anchor[0] and anchor[0] > 10:
-        # Do a dry run to find final CTL/ATL
-        dry_ctl, dry_atl = 0.0, 0.0
-        d = first_date
-        while d <= last_date:
-            tss = tss_by_date.get(d, 0.0)
-            dry_ctl = dry_ctl + (tss - dry_ctl) / ctl_tau
-            dry_atl = dry_atl + (tss - dry_atl) / atl_tau
-            d += timedelta(days=1)
-        # Scale starting CTL/ATL so final values match anchor
-        if dry_ctl > 0:
-            ctl = max(0, float(anchor[0]) - dry_ctl)
-            atl = max(0, float(anchor[1]) - dry_atl) if anchor[1] else 0.0
-
-    results = []
-    d = first_date
-    while d <= last_date:
-        tss = tss_by_date.get(d, 0.0)
-        ctl = ctl + (tss - ctl) / ctl_tau
-        atl = atl + (tss - atl) / atl_tau
-        tsb = ctl - atl
-        results.append((d, tss, round(ctl, 2), round(atl, 2), round(tsb, 2)))
-        d += timedelta(days=1)
-
-    # Upsert into training_load
-    for r in results:
-        cur.execute("""
-            INSERT INTO training_load (date, daily_tss, ctl, atl, tsb)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (date) DO UPDATE SET
-                daily_tss = EXCLUDED.daily_tss, ctl = EXCLUDED.ctl,
-                atl = EXCLUDED.atl, tsb = EXCLUDED.tsb
-        """, r)
-    conn.commit()
-
-    # Display
-    latest = results[-1]
-    prev = results[-2] if len(results) > 1 else latest
-    ctl_delta = latest[2] - prev[2]
-    atl_delta = latest[3] - prev[3]
-    tsb_delta = latest[4] - prev[4]
-
-    def trend(v):
-        return "↑" if v > 0.1 else ("↓" if v < -0.1 else "→")
-
-    print("═" * 50)
-    print("    📈 PERFORMANCE MANAGEMENT CHART")
-    print("═" * 50)
-    print(f"\n  Date:    {latest[0]}")
-    print(f"  CTL:     {latest[2]:6.1f}  {trend(ctl_delta)} ({ctl_delta:+.1f})")
-    print(f"  ATL:     {latest[3]:6.1f}  {trend(atl_delta)} ({atl_delta:+.1f})")
-    print(f"  TSB:     {latest[4]:6.1f}  {trend(tsb_delta)} ({tsb_delta:+.1f})")
-    print(f"\n  Last 7 days:")
-    for r in results[-7:]:
-        print(f"    {r[0]}  TSS:{r[1]:5.0f}  CTL:{r[2]:5.1f}  ATL:{r[3]:5.1f}  TSB:{r[4]:+5.1f}")
-    print("═" * 50)
-
-    cur.close()
-    conn.close()
-
-
-# ── Post-Ride Analysis ────────────────────────────────────────────
-
-def post_ride(target_date=None):
-    """Show post-ride analysis for a given date."""
-    if target_date is None:
-        target_date = date.today().isoformat()
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-    cur.execute("""
-        SELECT * FROM training_workouts
-        WHERE date = %s AND completed = true
-        ORDER BY tss_actual DESC NULLS LAST
-    """, (target_date,))
-    workouts = cur.fetchall()
-
-    if not workouts:
-        print(f"No completed workouts found for {target_date}")
-        cur.close()
-        conn.close()
-        return
-
-    for w in workouts:
-        title = w["title"] or "Untitled"
-        dur = w["duration_actual_min"]
-        dur_str = f"{dur // 60}:{dur % 60:02d}:00" if dur else "N/A"
-        np_val = w["np_actual"]
-        avg_pwr = w["avg_power"]
-        avg_hr = w["avg_hr"]
-
-        vi = round(float(np_val) / float(avg_pwr), 2) if np_val and avg_pwr and float(avg_pwr) > 0 else None
-        ef = round(float(np_val) / float(avg_hr), 2) if np_val and avg_hr and float(avg_hr) > 0 else None
-        quality = w["workout_quality"]
-        quality_str = f"{quality:.0f}%" if quality else "N/A"
-
-        tss_p = w["tss_planned"]
-        tss_a = w["tss_actual"]
-        if_p = w["if_planned"]
-        if_a = w["if_actual"]
-
-        print(f"🚴 **Post-Ride: {title}**")
-        print(f"Duration: {dur_str} | TSS: {tss_p or 'N/A'}→{tss_a or 'N/A'} | IF: {if_p or 'N/A'}→{if_a or 'N/A'}")
-        print(f"NP: {np_val or 'N/A'}W | Avg Power: {avg_pwr or 'N/A'}W | VI: {vi or 'N/A'}")
-        print(f"Avg HR: {avg_hr or 'N/A'} | EF: {ef or 'N/A'}")
-        print(f"Quality Score: {quality_str}")
-        if tss_p and tss_a:
-            pct = (float(tss_a) / float(tss_p) - 1) * 100
-            emoji = "✅" if abs(pct) < 15 else ("⚠️" if abs(pct) < 30 else "❌")
-            print(f"TSS Adherence: {pct:+.0f}% {emoji}")
-        print()
-
-    cur.close()
-    conn.close()
-
-
-# ── FTP Projection ────────────────────────────────────────────────
-
-def ftp_project():
-    """Project FTP trajectory toward 300W target."""
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("SELECT test_date, ftp_watts FROM ftp_history ORDER BY test_date")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    if len(rows) < 1:
-        print("No FTP history found.")
-        return
-
-    current_ftp = rows[-1][1]
-    current_date = rows[-1][0]
-    target_w = 300
-    target_date = date(2026, 12, 31)
-    vattern_date = date(2026, 6, 12)
-
-    weeks_to_target = max(1, (target_date - date.today()).days / 7)
-    weeks_to_vattern = max(1, (vattern_date - date.today()).days / 7)
-    weekly_gain = (target_w - current_ftp) / weeks_to_target
-
-    # Linear projection
-    if len(rows) >= 2:
-        base = rows[0][0]
-        days = [(r[0] - base).days for r in rows]
-        ftps = [r[1] for r in rows]
-        # Simple linear regression
-        n = len(days)
-        sx = sum(days)
-        sy = sum(ftps)
-        sxx = sum(d * d for d in days)
-        sxy = sum(d * f for d, f in zip(days, ftps))
-        slope = (n * sxy - sx * sy) / (n * sxx - sx * sx) if (n * sxx - sx * sx) != 0 else 0
-        intercept = (sy - slope * sx) / n
-
-        vattern_day = (vattern_date - base).days
-        target_day = (target_date - base).days
-        vattern_proj = round(slope * vattern_day + intercept)
-        dec_proj = round(slope * target_day + intercept)
-    else:
-        # Single data point - use required rate
-        vattern_proj = round(current_ftp + weekly_gain * weeks_to_vattern)
-        dec_proj = target_w
-
-    print("═" * 50)
-    print("    ⚡ FTP TRAJECTORY")
-    print("═" * 50)
-    print(f"\n  Current FTP:     {current_ftp}W (as of {current_date})")
-    print(f"  Target:          {target_w}W by {target_date}")
-    print(f"  Gap:             {target_w - current_ftp}W")
-    print(f"\n  Weeks to target: {weeks_to_target:.0f}")
-    print(f"  Required gain:   {weekly_gain:.2f} W/week")
-    print(f"\n  Projected at Vatternrundan ({vattern_date}): ~{vattern_proj}W")
-    print(f"  Projected at Dec 31:                       ~{dec_proj}W")
-
-    on_track = dec_proj >= target_w
-    print(f"\n  Status: {'✅ On track' if on_track else '⚠️ Behind pace'}")
-    print("═" * 50)
-
-
-# ── Weekly Summary ────────────────────────────────────────────────
-
-def weekly_summary(ref_date=None):
-    """Generate weekly training summary (Mon-Sun)."""
-    if ref_date is None:
-        ref_date = date.today().isoformat()
-    ref = datetime.strptime(ref_date, "%Y-%m-%d").date()
-    # Monday of that week
-    week_start = ref - timedelta(days=ref.weekday())
-    week_end = week_start + timedelta(days=6)
-
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-    # Workouts
-    cur.execute("""
-        SELECT * FROM training_workouts
-        WHERE date BETWEEN %s AND %s ORDER BY date
-    """, (week_start, week_end))
-    workouts = cur.fetchall()
-
-    tss_planned = sum(float(w["tss_planned"] or 0) for w in workouts)
-    tss_actual = sum(float(w["tss_actual"] or 0) for w in workouts)
-    total_min = sum(int(w["duration_actual_min"] or 0) for w in workouts)
-    completed = sum(1 for w in workouts if w["completed"])
-    total = len(workouts)
-    hours = total_min / 60
-
-    # Whoop averages
-    cur.execute("""
-        SELECT AVG(recovery_score) as avg_rec, AVG(hrv_rmssd) as avg_hrv,
-               AVG(sleep_duration_min) as avg_sleep, AVG(sleep_score) as avg_sleep_score
-        FROM whoop_recovery WHERE date BETWEEN %s AND %s
-    """, (week_start, week_end))
-    whoop = cur.fetchone()
-
-    # PMC (latest in week)
-    cur.execute("""
-        SELECT * FROM training_load WHERE date BETWEEN %s AND %s
-        ORDER BY date DESC LIMIT 1
-    """, (week_start, week_end))
-    pmc = cur.fetchone()
-
-    # FTP
-    cur.execute("SELECT ftp_watts, test_date FROM ftp_history ORDER BY test_date DESC LIMIT 1")
-    ftp_row = cur.fetchone()
-
-    cur.close()
-    conn.close()
-
-    tss_pct = ((tss_actual / tss_planned - 1) * 100) if tss_planned > 0 else 0
-    tss_emoji = "✅" if abs(tss_pct) < 15 else "⚠️"
-
-    avg_rec = float(whoop["avg_rec"]) if whoop and whoop["avg_rec"] else 0
-    avg_hrv = float(whoop["avg_hrv"]) if whoop and whoop["avg_hrv"] else 0
-    avg_sleep_min = float(whoop["avg_sleep"]) if whoop and whoop["avg_sleep"] else 0
-    avg_sleep_hrs = avg_sleep_min / 60
-
-    print(f"📊 **Week of {week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')}**")
-    print()
-    print("**TRAINING LOAD**")
-    print(f"  TSS Planned: {tss_planned:.0f} | Actual: {tss_actual:.0f} ({tss_pct:+.0f}%) {tss_emoji}")
-    print(f"  Hours: {hours:.1f} | Workouts: {completed}/{total} completed")
-    print()
-    if pmc:
-        ctl = float(pmc["ctl"] or 0)
-        atl = float(pmc["atl"] or 0)
-        tsb = float(pmc["tsb"] or 0)
-        print("**FITNESS / FATIGUE / FORM**")
-        print(f"  CTL: {ctl:.1f} | ATL: {atl:.1f} | TSB: {tsb:+.1f}")
-        print()
-    print("**RECOVERY (Whoop avg)**")
-    rec_emoji = "🟢" if avg_rec >= 67 else ("🟡" if avg_rec >= 34 else "🔴")
-    print(f"  Recovery: {avg_rec:.0f}% {rec_emoji} | HRV: {avg_hrv:.0f}ms")
-    print(f"  Sleep: {avg_sleep_hrs:.1f} hrs avg")
-    print()
-    if ftp_row:
-        ftp_w = ftp_row["ftp_watts"]
-        gap = 300 - ftp_w
-        weeks_left = max(1, (date(2026, 12, 31) - date.today()).days / 7)
-        print("**FTP TRAJECTORY**")
-        print(f"  Current: {ftp_w}W → Target: 300W by end of 2026")
-        print(f"  Gap: {gap}W | Need: {gap/weeks_left:.2f} W/week")
-    print()
 
 
 # ── Status ────────────────────────────────────────────────────────
@@ -772,7 +497,6 @@ def show_status():
 
 # ── PMC (CTL/ATL/TSB) ─────────────────────────────────────────────
 
-FTP = 263
 
 def calc_pmc():
     """Calculate Performance Management Chart: CTL (42d), ATL (7d), TSB.
@@ -791,7 +515,7 @@ def calc_pmc():
 
     # Get all daily TSS from training_workouts
     cur.execute("""
-        SELECT date, COALESCE(SUM(tss_actual), 0) as tss
+        SELECT date, COALESCE(SUM(COALESCE(tss_actual, tss_planned)), 0) as tss
         FROM training_workouts
         GROUP BY date ORDER BY date
     """)
@@ -928,7 +652,7 @@ def post_ride(target_date=None):
 
         # Core metrics
         if np_val:
-            if_calc = np_val / FTP
+            if_calc = np_val / _get_current_ftp()[0]
             print(f"  NP: {np_val:.0f}W | IF: {if_calc:.3f}")
         if tss_p and tss_a:
             diff_pct = (tss_a - tss_p) / tss_p * 100
@@ -1112,7 +836,7 @@ def weekly_summary(target_date=None):
 
     out.append("")
     out.append("**POWER**")
-    current_ftp = ftp_row['ftp_watts'] if ftp_row else FTP
+    current_ftp = ftp_row['ftp_watts'] if ftp_row else _get_current_ftp()[0]
     out.append(f"  Current FTP: {current_ftp}W")
     if ifs:
         out.append(f"  Week Avg IF: {avg_if:.2f} | Peak IF: {peak_if:.2f} ({peak_if_workout})")
@@ -1187,7 +911,7 @@ def strava_refresh_token():
         "client_secret": env.get("STRAVA_CLIENT_SECRET"),
         "grant_type": "refresh_token",
         "refresh_token": refresh,
-    })
+    }, timeout=15)
     if resp.status_code != 200:
         print(f"⚠️  Strava token refresh failed: {resp.status_code}")
         return None
@@ -1217,11 +941,11 @@ def strava_refresh_token():
 def strava_api(endpoint, token):
     """Call Strava API with auto-retry on 401."""
     url = f"https://www.strava.com/api/v3{endpoint}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
     if resp.status_code == 401:
         new_token = strava_refresh_token()
         if new_token:
-            resp = requests.get(url, headers={"Authorization": f"Bearer {new_token}"})
+            resp = requests.get(url, headers={"Authorization": f"Bearer {new_token}"}, timeout=15)
         else:
             print("❌ Strava auth failed. Token may be expired with no refresh token.")
             return None
