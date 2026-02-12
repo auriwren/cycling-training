@@ -22,6 +22,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import get_config, get_path
+
 import warnings
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*")
 
@@ -29,21 +31,53 @@ import psycopg2
 import psycopg2.extras
 import requests
 
-DB_CONN = "dbname=auri_memory user=openclaw"
-WHOOP_ENV = Path.home() / ".openclaw/credentials/whoop.env"
-TP_ENV = Path.home() / ".openclaw/credentials/trainingpeaks.env"
-STRAVA_ENV = Path.home() / ".openclaw/credentials/strava.env"
-TP_TOKEN_CACHE = Path.home() / ".openclaw/cache/tp-token.json"
+CONFIG = get_config()
 
-# Strava clubs to check for events (skip Zwift, Road Cycling Academy)
-STRAVA_CLUBS = {
-    1209: "New York Cycle Club (NYCC)",
-    228861: "Redbeard Bikes",
-    770232: "Bistro Cycling Club",
-    840835: "Century Plus Crew",
-    121422: "Rapha New York",
-    1489429: "The Rogue Group Cycling Club",
-}
+DB_CONN = CONFIG["database"]["connection"]
+WHOOP_ENV = get_path(CONFIG["credentials"]["whoop_env"])
+TP_ENV = get_path(CONFIG["credentials"]["trainingpeaks_env"])
+STRAVA_ENV = get_path(CONFIG["credentials"]["strava_env"])
+TP_TOKEN_CACHE = get_path(CONFIG["cache"]["trainingpeaks_token"])
+
+WHOOP_API_BASE = CONFIG["api"]["whoop"]["base_url"]
+WHOOP_RECOVERY_ENDPOINT = CONFIG["api"]["whoop"]["recovery_endpoint"]
+WHOOP_SLEEP_ENDPOINT = CONFIG["api"]["whoop"]["sleep_endpoint"]
+WHOOP_CYCLE_ENDPOINT = CONFIG["api"]["whoop"]["cycle_endpoint"]
+WHOOP_TIMEOUT_SEC = CONFIG["api"]["whoop"]["timeout_sec"]
+
+TP_TOKEN_URL = CONFIG["api"]["trainingpeaks"]["token_url"]
+TP_WORKOUTS_URL_TEMPLATE = CONFIG["api"]["trainingpeaks"]["workouts_url_template"]
+TP_TIMEOUT_SEC = CONFIG["api"]["trainingpeaks"]["timeout_sec"]
+TP_DEFAULT_USER_ID = CONFIG["api"]["trainingpeaks"]["default_user_id"]
+
+STRAVA_OAUTH_TOKEN_URL = CONFIG["api"]["strava"]["oauth_token_url"]
+STRAVA_API_BASE = CONFIG["api"]["strava"]["api_base_url"]
+STRAVA_ACTIVITIES_ENDPOINT = CONFIG["api"]["strava"]["activities_endpoint"]
+STRAVA_ACTIVITY_ZONES_ENDPOINT = CONFIG["api"]["strava"]["activity_zones_endpoint"]
+STRAVA_CLUB_EVENTS_ENDPOINT = CONFIG["api"]["strava"]["club_events_endpoint"]
+STRAVA_TIMEOUT_SEC = CONFIG["api"]["strava"]["timeout_sec"]
+STRAVA_RATE_LIMIT_THRESHOLD = CONFIG["api"]["strava"]["rate_limit_threshold"]
+STRAVA_RATE_LIMIT_PAUSE_SEC = CONFIG["api"]["strava"]["rate_limit_pause_sec"]
+STRAVA_MAX_RETRIES = CONFIG["api"]["strava"]["max_retries"]
+STRAVA_RETRY_BASE_DELAY_SEC = CONFIG["api"]["strava"]["retry_base_delay_sec"]
+
+WEATHER_GEOCODE_URL = CONFIG["api"]["weather"]["geocode_url"]
+WEATHER_FORECAST_URL = CONFIG["api"]["weather"]["forecast_url"]
+WEATHER_FORECAST_DAYS = CONFIG["api"]["weather"]["forecast_days"]
+WEATHER_TIMEZONE = CONFIG["api"]["weather"]["timezone"]
+WEATHER_TEMP_UNIT = CONFIG["api"]["weather"]["temperature_unit"]
+WEATHER_WIND_UNIT = CONFIG["api"]["weather"]["wind_speed_unit"]
+WEATHER_DEFAULT_LOCATION = CONFIG["api"]["weather"]["default_location"]
+WEATHER_DEFAULT_LAT = CONFIG["api"]["weather"]["default_lat"]
+WEATHER_DEFAULT_LON = CONFIG["api"]["weather"]["default_lon"]
+
+RACE_WEATHER_URL = CONFIG["api"]["race_weather"]["forecast_url"]
+RACE_WEATHER_USER_AGENT = CONFIG["api"]["race_weather"]["user_agent"]
+RACE_WEATHER_LAT = CONFIG["api"]["race_weather"]["lat"]
+RACE_WEATHER_LON = CONFIG["api"]["race_weather"]["lon"]
+
+# Strava clubs to check for events
+STRAVA_CLUBS = {int(k): v for k, v in CONFIG["strava"]["clubs"].items()}
 
 
 def get_db() -> Any:
@@ -74,12 +108,12 @@ def whoop_refresh():
 
 def whoop_api(endpoint, token):
     """Call Whoop API, retry once on 401."""
-    url = f"https://api.prod.whoop.com/developer{endpoint}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+    url = f"{WHOOP_API_BASE}{endpoint}"
+    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=WHOOP_TIMEOUT_SEC)
     if resp.status_code == 401:
         if whoop_refresh():
             token = load_env(WHOOP_ENV).get("WHOOP_ACCESS_TOKEN", "")
-            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=WHOOP_TIMEOUT_SEC)
     resp.raise_for_status()
     return resp.json()
 
@@ -216,9 +250,9 @@ def tp_get_token() -> Optional[str]:
         return None
 
     resp = requests.get(
-        "https://tpapi.trainingpeaks.com/users/v3/token",
+        TP_TOKEN_URL,
         headers={"Cookie": f"Production_tpAuth={cookie}", "Accept": "application/json"},
-        timeout=15,
+        timeout=TP_TIMEOUT_SEC,
     )
     if resp.status_code != 200:
         print(f"❌ TP token exchange failed: HTTP {resp.status_code}")
@@ -268,7 +302,7 @@ def sync_tp(days: int = 7) -> bool:
         return False
 
     env = load_env(TP_ENV)
-    user_id = env.get("TP_USER_ID", "2100281")
+    user_id = env.get("TP_USER_ID", TP_DEFAULT_USER_ID)
 
     # Pull through end of current week (Sunday) to include upcoming planned workouts
     today = datetime.now()
@@ -276,19 +310,19 @@ def sync_tp(days: int = 7) -> bool:
     end_dt = today + timedelta(days=max(days_until_sunday, 0))
     end_date = end_dt.strftime("%Y-%m-%d")
     start_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
-    url = f"https://tpapi.trainingpeaks.com/fitness/v6/athletes/{user_id}/workouts/{start_date}/{end_date}"
+    url = TP_WORKOUTS_URL_TEMPLATE.format(user_id=user_id, start_date=start_date, end_date=end_date)
 
     resp = requests.get(url, headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
-    }, timeout=15)
+    }, timeout=TP_TIMEOUT_SEC)
     if resp.status_code == 401:
         # Clear cache and retry
         TP_TOKEN_CACHE.unlink(missing_ok=True)
         token = tp_get_token()
         if not token:
             return False
-        resp = requests.get(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=15)
+        resp = requests.get(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=TP_TIMEOUT_SEC)
 
     if resp.status_code != 200:
         print(f"❌ TP API error: HTTP {resp.status_code}")
@@ -725,7 +759,7 @@ def _post_ride_inner(conn: Any, target_date: str) -> None:
 # ── FTP Projection ────────────────────────────────────────────────
 
 def ftp_project() -> None:
-    """Project FTP trajectory toward 300W target."""
+    """Project FTP trajectory toward target FTP."""
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -740,10 +774,10 @@ def ftp_project() -> None:
 
     current_ftp = rows[-1][1]
     current_date = rows[-1][0]
-    target_ftp = 300
-    target_date = date(2026, 12, 31)
-    vattern_date = date(2026, 6, 12)
-    next_test = date(2026, 2, 26)
+    target_ftp = TARGET_FTP
+    target_date = TARGET_FTP_DATE
+    vattern_date = RACE_DATE
+    next_test = NEXT_TEST_DATE
 
     weeks_to_target = max(1, (target_date - date.today()).days / 7)
     weekly_gain = (target_ftp - current_ftp) / weeks_to_target
@@ -933,12 +967,12 @@ def strava_refresh_token() -> Optional[str]:
     if not refresh:
         return None  # Legacy token, no refresh possible
 
-    resp = requests.post("https://www.strava.com/oauth/token", data={
+    resp = requests.post(STRAVA_OAUTH_TOKEN_URL, data={
         "client_id": env.get("STRAVA_CLIENT_ID"),
         "client_secret": env.get("STRAVA_CLIENT_SECRET"),
         "grant_type": "refresh_token",
         "refresh_token": refresh,
-    }, timeout=15)
+    }, timeout=STRAVA_TIMEOUT_SEC)
     if resp.status_code != 200:
         print(f"⚠️  Strava token refresh failed: {resp.status_code}")
         return None
@@ -969,7 +1003,7 @@ def strava_refresh_token() -> Optional[str]:
     return new_access
 
 
-def strava_api_get(url, token, max_retries=5):
+def strava_api_get(url, token, max_retries=STRAVA_MAX_RETRIES):
     """Make a Strava API GET request with exponential backoff and rate limit handling.
 
     Returns the Response object on success, raises on exhausted retries.
@@ -978,9 +1012,9 @@ def strava_api_get(url, token, max_retries=5):
     auth_retried = False
     for attempt in range(max_retries):
         try:
-            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=STRAVA_TIMEOUT_SEC)
         except requests.RequestException as e:
-            wait = 5 * (2 ** attempt)
+            wait = STRAVA_RETRY_BASE_DELAY_SEC * (2 ** attempt)
             print(f"  ⏳ Request error ({e}), retrying in {wait}s (attempt {attempt+1}/{max_retries})")
             time.sleep(wait)
             continue
@@ -992,9 +1026,10 @@ def strava_api_get(url, token, max_retries=5):
             if len(parts) >= 1:
                 try:
                     short_usage = int(parts[0])
-                    if short_usage > 90:
-                        print(f"  ⏸️  Rate limit approaching ({short_usage}/100), pausing 15 min...")
-                        time.sleep(900)
+                    if short_usage > STRAVA_RATE_LIMIT_THRESHOLD:
+                        pause_min = int(STRAVA_RATE_LIMIT_PAUSE_SEC / 60)
+                        print(f"  ⏸️  Rate limit approaching ({short_usage}/100), pausing {pause_min} min...")
+                        time.sleep(STRAVA_RATE_LIMIT_PAUSE_SEC)
                 except ValueError:
                     pass
 
@@ -1020,7 +1055,7 @@ def strava_api_get(url, token, max_retries=5):
             return resp  # Let caller handle 404
 
         # Other errors: exponential backoff
-        wait = 5 * (2 ** attempt)
+        wait = STRAVA_RETRY_BASE_DELAY_SEC * (2 ** attempt)
         print(f"  ⏳ HTTP {resp.status_code}, retrying in {wait}s (attempt {attempt+1}/{max_retries})")
         time.sleep(wait)
 
@@ -1029,7 +1064,7 @@ def strava_api_get(url, token, max_retries=5):
 
 def strava_api(endpoint, token):
     """Call Strava API endpoint, return parsed JSON or None."""
-    url = f"https://www.strava.com/api/v3{endpoint}"
+    url = f"{STRAVA_API_BASE}{endpoint}"
     try:
         resp = strava_api_get(url, token)
     except RuntimeError as e:
@@ -1042,15 +1077,8 @@ def strava_api(endpoint, token):
 
 # ── Strava Power Zones ─────────────────────────────────────────────
 
-# Coach Max zones (FTP 262W)
 COACH_ZONES = [
-    ("recovery",      0,   144),
-    ("endurance",     145, 196),
-    ("tempo",         197, 236),
-    ("threshold",     237, 275),
-    ("vo2",           276, 314),
-    ("anaerobic",     315, 393),
-    ("neuromuscular", 394, 9999),
+    (z["name"], z["min"], z["max"]) for z in CONFIG["strava"]["coach_zones"]
 ]
 
 
@@ -1122,7 +1150,7 @@ def sync_strava_zones(days: int = 365) -> None:
     all_activities = []
     page = 1
     while True:
-        url = f"https://www.strava.com/api/v3/athlete/activities?per_page=200&page={page}&after={cutoff}"
+        url = f"{STRAVA_API_BASE}{STRAVA_ACTIVITIES_ENDPOINT}?per_page=200&page={page}&after={cutoff}"
         try:
             resp = strava_api_get(url, token)
         except RuntimeError as e:
@@ -1162,7 +1190,8 @@ def sync_strava_zones(days: int = 365) -> None:
         act_date = act.get("start_date_local", "")[:10]
 
         try:
-            resp = strava_api_get(f"https://www.strava.com/api/v3/activities/{aid}/zones", token)
+            endpoint = STRAVA_ACTIVITY_ZONES_ENDPOINT.format(activity_id=aid)
+            resp = strava_api_get(f"{STRAVA_API_BASE}{endpoint}", token)
             # Update token in case it was refreshed
             auth_header = resp.request.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
@@ -1284,7 +1313,8 @@ def strava_events() -> None:
         with conn:
             with conn.cursor() as cur:
                 for club_id, club_name in STRAVA_CLUBS.items():
-                    data = strava_api(f"/clubs/{club_id}/group_events", token)
+                    endpoint = STRAVA_CLUB_EVENTS_ENDPOINT.format(club_id=club_id)
+                    data = strava_api(endpoint, token)
                     if not data:
                         continue
                     for ev in data:
@@ -1351,36 +1381,15 @@ def strava_events() -> None:
 
 def get_kit_recommendation(temp_f):
     """Return kit recommendation based on temperature."""
-    if temp_f < 30:
-        return "❄️ Below 30F -- indoor ride recommended. Don't ride outdoors."
-    elif temp_f < 40:
-        return "🥶 Full winter kit: thermal bibs, winter jacket, shoe covers, heavy gloves, balaclava"
-    elif temp_f < 50:
-        return "🧥 Cold weather: thermal jersey, leg warmers, wind vest, medium gloves, ear cover"
-    elif temp_f < 60:
-        return "🧤 Cool weather: long sleeve jersey, arm warmers, knee warmers, light gloves"
-    elif temp_f < 70:
-        return "👕 Mild: short sleeve jersey, bibs, light arm warmers optional"
-    else:
-        return "☀️ Summer kit: short sleeve jersey, bibs, sunscreen"
+    for entry in KIT_THRESHOLDS:
+        if temp_f <= entry["max_temp"]:
+            return entry["recommendation"]
+    return KIT_THRESHOLDS[-1]["recommendation"]
 
 
-GEOCODE_CACHE = {
-    "brooklyn, ny": (40.6782, -73.9442),
-    "new york": (40.7128, -74.0060),
-    "manhattan": (40.7831, -73.9712),
-    "central park": (40.7829, -73.9654),
-}
-
-WMO_CODES = {
-    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-    45: "Foggy", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle",
-    55: "Heavy drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain",
-    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
-    80: "Light showers", 81: "Showers", 82: "Heavy showers",
-    85: "Light snow showers", 86: "Heavy snow showers",
-    95: "Thunderstorm", 96: "Thunderstorm w/ hail", 99: "Thunderstorm w/ heavy hail",
-}
+GEOCODE_CACHE = {k: tuple(v) for k, v in CONFIG["weather"]["geocode_cache"].items()}
+WMO_CODES = {int(k): v for k, v in CONFIG["weather"]["wmo_codes"].items()}
+KIT_THRESHOLDS = CONFIG["weather"]["kit_thresholds_f"]
 
 
 def geocode(location):
@@ -1390,7 +1399,7 @@ def geocode(location):
         return GEOCODE_CACHE[key]
     try:
         resp = requests.get(
-            f"https://geocoding-api.open-meteo.com/v1/search?name={location}&count=1&language=en&format=json",
+            f"{WEATHER_GEOCODE_URL}?name={location}&count=1&language=en&format=json",
             timeout=10,
         )
         results = resp.json().get("results", [])
@@ -1398,22 +1407,23 @@ def geocode(location):
             return (results[0]["latitude"], results[0]["longitude"])
     except Exception:
         pass
-    return (40.6782, -73.9442)  # Default Brooklyn
+    return (WEATHER_DEFAULT_LAT, WEATHER_DEFAULT_LON)
 
 
 def c_to_f(c):
     return round(c * 9 / 5 + 32)
 
 
-def weather(location: str = "Brooklyn, NY") -> None:
+def weather(location: str = WEATHER_DEFAULT_LOCATION) -> None:
     """Show weather and ride kit recommendation using Open-Meteo."""
     lat, lon = geocode(location)
     try:
         resp = requests.get(
-            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+            f"{WEATHER_FORECAST_URL}?latitude={lat}&longitude={lon}"
             f"&current=temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,relative_humidity_2m,weather_code"
             f"&daily=temperature_2m_max,temperature_2m_min,weather_code"
-            f"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America/New_York&forecast_days=3",
+            f"&temperature_unit={WEATHER_TEMP_UNIT}&wind_speed_unit={WEATHER_WIND_UNIT}"
+            f"&timezone={WEATHER_TIMEZONE}&forecast_days={WEATHER_FORECAST_DAYS}",
             timeout=10,
         )
         resp.raise_for_status()
@@ -1951,33 +1961,23 @@ def get_top_insight() -> Optional[Tuple[str, str, str]]:
 
 # ── Phase 5: Vatternrundan Race Prep ──────────────────────────────
 
-RACE_DATE = date(2026, 6, 13)  # Vätternrundan start 03:20 AM June 13
-HALVVATTERN_DATE = date(2026, 6, 6)  # Halvvättern 150km, warm-up race
-RACE_DISTANCE_KM = 315
-RACE_TARGET_HOURS = 10.0
-RACE_TARGET_AVG_KPH = 31.5
+RACE_DATE = date.fromisoformat(CONFIG["race"]["race_date"])  # Vätternrundan start
+HALVVATTERN_DATE = date.fromisoformat(CONFIG["race"]["halvvattern_date"])
+RACE_DISTANCE_KM = CONFIG["race"]["distance_km"]
+RACE_TARGET_HOURS = CONFIG["race"]["target_hours"]
+RACE_TARGET_AVG_KPH = CONFIG["race"]["target_avg_kph"]
 
-VATTERN_SEGMENTS = [
-    {"name": "Motala -> Karlsborg (East shore)", "km_start": 0, "km_end": 50, "terrain": "Rolling", "notes": "Start discipline! Stay easy."},
-    {"name": "Karlsborg -> Hjo (West shore)", "km_start": 50, "km_end": 120, "terrain": "Some hills", "notes": "Find rhythm, don't chase."},
-    {"name": "Hjo -> Jonkoping (Southern tip)", "km_start": 120, "km_end": 170, "terrain": "Exposed/wind", "notes": "Wind exposed. Stay aero, draft."},
-    {"name": "Jonkoping -> Granna (East shore)", "km_start": 170, "km_end": 231, "terrain": "Climbing", "notes": "Granna hill is notable. Cap climbs at 72% FTP."},
-    {"name": "Granna -> Motala (Final stretch)", "km_start": 231, "km_end": 315, "terrain": "Mixed", "notes": "Fatigue management. Push if legs are good."},
-]
+VATTERN_SEGMENTS = CONFIG["race"]["segments"]
+RACE_START_TIME = CONFIG["race"]["start_time"]
+REST_STOPS = CONFIG["race"]["rest_stops"]
 
-# Race start: 03:20 AM June 13, 2026
-RACE_START_TIME = "03:20"
+DEFAULT_FTP = CONFIG["ftp"]["default_ftp"]
+TARGET_FTP = CONFIG["ftp"]["target_ftp"]
+TARGET_FTP_DATE = date.fromisoformat(CONFIG["ftp"]["target_date"])
+NEXT_TEST_DATE = date.fromisoformat(CONFIG["ftp"]["next_test_date"])
 
-# Max 4 stops from 9 available depots. Thousands of participants = expect crowds.
-# Realistic stop times: normal 10-12 min, hot food 20-25 min.
-# Depots: Ödeshög (47km), Ölmstad (83km), Jönköping (104km), Fagerhult (133km),
-#          Hjo (171km), Karlsborg (204km), Boviken (225km), Askersund (256km), Godegård (284km)
-REST_STOPS = [
-    {"km": 83, "mi": 52, "name": "Ölmstad (83km)", "stop_min": 10, "action": "Refill F369 bottles. Pickles + bread. ~10 min."},
-    {"km": 104, "mi": 65, "name": "Jönköping (104km)", "stop_min": 22, "action": "HOT FOOD: meatballs + mashed potatoes. Blueberry soup. Refill bottles. ~20-25 min."},
-    {"km": 204, "mi": 127, "name": "Karlsborg (204km)", "stop_min": 12, "action": "Refill F369 bottles. Pickles + bread. Stretch. ~10-12 min."},
-    {"km": 284, "mi": 176, "name": "Godegård (284km)", "stop_min": 10, "action": "Last refill. Quick fuel. Push to finish. ~10 min."},
-]
+TAPER_SETTINGS = CONFIG["race"]["taper"]
+CLIMATE_AVERAGES = CONFIG["race"]["climate_averages"]
 
 
 def _get_current_ftp() -> Tuple[int, date]:

@@ -107,12 +107,23 @@ cycling-training <command> [options]
 | `strava-events` | Upcoming Strava club group rides |
 | `weather [LOCATION]` | Weather forecast + cycling kit recommendation |
 
+## Origins & Standalone Use
+
+This tool was originally built for use with [OpenClaw](https://github.com/openclaw/openclaw), an AI assistant platform. Within OpenClaw, the daily sync and dashboard generation run as cron jobs, the coaching assessment uses OpenClaw's LLM access, and credentials are managed through OpenClaw's credential store.
+
+**To run standalone (without OpenClaw):**
+- All data sync, analytics, and dashboard generation work independently. No OpenClaw dependency for core functionality.
+- The **coaching assessment** text in the dashboard is generated via an LLM API call (currently OpenAI). You'll need an `OPENAI_API_KEY` environment variable, or you can skip it (the dashboard renders fine without coaching text).
+- Credentials are read from simple `.env` files (key=value format). Set paths in `config.json` or use the defaults.
+- The `--upload` flag on `generate-dashboard` uses Fastmail WebDAV to publish the HTML. For standalone use, skip `--upload` and serve the generated file however you like, or point the upload config at your own WebDAV/S3/etc.
+
 ## Setup
 
 ### Requirements
 - Python 3.10+
-- PostgreSQL
-- `psycopg2`, `requests`
+- PostgreSQL (any recent version)
+- Python packages: `psycopg2` (or `psycopg2-binary`), `requests`
+- Optional: `openai` Python package (for coaching assessment generation)
 
 ### Database
 Create the required tables by running the CLI for the first time (tables auto-create) or see the schema in the source.
