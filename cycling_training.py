@@ -2157,9 +2157,16 @@ def cmd_race_plan() -> None:
     ref = race_cfg.get("reference_2025", {})
     seg_pacing = race_cfg.get("segments_pacing", [])
 
+    vi = race_cfg.get("variability_index", 1.12)
+    course_penalty = race_cfg.get("course_penalty_pct", 5) / 100
+    air_density = race_cfg.get("air_density", 1.2)
+    climb_cap_pct = race_cfg.get("climb_cap_pct", 0.85)
+    hard_limit_pct = race_cfg.get("hard_limit_pct", 0.90)
+    fueling = race_cfg.get("fueling", {})
+    pre_dawn = race_cfg.get("pre_dawn", {})
+
     system_kg = (rider_lbs + bike_lbs) / 2.205
     np_target = round(target_if * race_ftp)
-    vi = 1.12  # variability index from 2025 data
     avg_power = round(np_target / vi)
     tss_per_hr = target_if ** 2 * 100
     total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
@@ -2167,12 +2174,12 @@ def cmd_race_plan() -> None:
     # Speed calculations
     solo_flat_kph = _calc_speed_kph(np_target, system_kg, cda, crr)
     solo_flat_mph = solo_flat_kph * 0.6214
-    # Real course penalty: ~5% slower than flat (hills, wind, corners, fatigue)
-    solo_real_kph = solo_flat_kph * 0.95
+    course_factor = 1 - course_penalty
+    solo_real_kph = solo_flat_kph * course_factor
     solo_real_mph = solo_real_kph * 0.6214
     # With drafting
     draft_cda = cda * (1 - draft_pct / 100)
-    draft_kph = _calc_speed_kph(np_target, system_kg, draft_cda, crr) * 0.95
+    draft_kph = _calc_speed_kph(np_target, system_kg, draft_cda, crr) * course_factor
     draft_mph = draft_kph * 0.6214
 
     # Time estimates
@@ -2201,7 +2208,7 @@ def cmd_race_plan() -> None:
     print(f"  Target NP: {np_target}W ({target_if*100:.0f}% FTP)")
     print(f"  Est avg power: ~{avg_power}W (VI {vi})")
     print(f"  W/kg: {np_target/system_kg*2.205:.2f} NP / {avg_power/system_kg*2.205:.2f} avg (per lb)")
-    print(f"  Climb cap: {round(race_ftp * 0.85)}W (85% FTP) | Hard limit: {round(race_ftp * 0.90)}W (90%)")
+    print(f"  Climb cap: {round(race_ftp * climb_cap_pct)}W ({climb_cap_pct*100:.0f}% FTP) | Hard limit: {round(race_ftp * hard_limit_pct)}W ({hard_limit_pct*100:.0f}%)")
 
     # Segment breakdown from config
     if seg_pacing:
@@ -2221,7 +2228,7 @@ def cmd_race_plan() -> None:
     print(f"  ⏱️  SPEED & TIME ESTIMATES (physics-based)")
     print(f"{'─'*60}")
     print(f"  Assumptions: CdA {cda}, Crr {crr}, air density 1.2 kg/m³")
-    print(f"  Course penalty: 5% off flat speed (hills, wind, corners)")
+    print(f"  Course penalty: {race_cfg.get('course_penalty_pct', 5)}% off flat speed (hills, wind, corners)")
     print(f"  Drafting: {draft_pct}% aero drag reduction (riding with friend + groups)")
     print(f"\n  {'Scenario':<28} {'Speed':>12} {'Ride':>8} {'Stops':>7} {'Total':>8}")
     print("  " + "-" * 66)
@@ -2231,11 +2238,11 @@ def cmd_race_plan() -> None:
 
     # Conservative/optimistic range
     draft_lo_cda = cda * (1 - 15 / 100)
-    draft_lo_kph = _calc_speed_kph(np_target, system_kg, draft_lo_cda, crr) * 0.95
+    draft_lo_kph = _calc_speed_kph(np_target, system_kg, draft_lo_cda, crr) * course_factor
     draft_lo_ride = RACE_DISTANCE_KM / draft_lo_kph
     draft_lo_total = draft_lo_ride + total_stop_min / 60
     draft_hi_cda = cda * (1 - 25 / 100)
-    draft_hi_kph = _calc_speed_kph(np_target, system_kg, draft_hi_cda, crr) * 0.95
+    draft_hi_kph = _calc_speed_kph(np_target, system_kg, draft_hi_cda, crr) * course_factor
     draft_hi_ride = RACE_DISTANCE_KM / draft_hi_kph
     draft_hi_total = draft_hi_ride + total_stop_min / 60
     print(f"  {'With 15% draft (conservative)':<28} {draft_lo_kph*0.6214:.1f} mph  {fmt_hrs(draft_lo_ride):>8} {total_stop_min:>5}min {fmt_hrs(draft_lo_total):>8}")
@@ -2264,14 +2271,14 @@ def cmd_race_plan() -> None:
     print(f"{'─'*60}")
     print(f"  Start: {race_cfg.get('start_time', '03:20')} AM, June 13. Riding with a friend.")
     print("")
-    print("  PRIMARY FUEL: Formula 369 (30g carbs/scoop, 1:1 glucose:fructose)")
-    print("    3 bottles: 2 in cages + 1 flexible rubber bottle")
-    print("    Mix: 2-3 scoops per bottle (60-90g carbs per bottle)")
-    print("    Target: 80-90g carbs/hour (bottle + gel every 45-60 min)")
-    print("  SUPPLEMENT: Gels as needed between bottles")
-    print("  AT STOPS: Pickles (sodium), bread buns, blueberry soup")
-    print("  Jönköping: Hot meal (Swedish meatballs, mashed potatoes)")
-    print("  Hydration: 16-24 oz/hour depending on temp.")
+    print(f"  PRIMARY FUEL: {fueling.get('primary', 'Carb drink mix')}")
+    print(f"    {fueling.get('bottles', 'Water bottles')}")
+    print(f"    Mix: {fueling.get('mix', 'As needed')}")
+    print(f"    Target: {fueling.get('target_carbs_per_hour', '60-90g carbs/hour')}")
+    print(f"  SUPPLEMENT: {fueling.get('supplement', 'Gels')}")
+    print(f"  AT STOPS: {fueling.get('stop_food', 'Quick food')}")
+    print(f"  {fueling.get('hot_meal', '')}")
+    print(f"  Hydration: {fueling.get('hydration', '16-24 oz/hour')}")
     print(f"  Total stop time budget: ~{total_stop_min} min")
 
     # Use draft speed for stop timing (primary scenario)
@@ -2298,9 +2305,12 @@ def cmd_race_plan() -> None:
         print(f"  {stop['name']:<25} {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm} {stop['stop_min']:>3}min  {stop['action']}")
         cumulative_stop_min += stop["stop_min"]
 
-    print(f"\n  Pre-dawn: Start {race_cfg.get('start_time', '03:20')} AM, sunrise ~03:51 AM. Only ~30 min in the dark.")
+    sunrise = pre_dawn.get("sunrise", "03:51 AM")
+    sunset = pre_dawn.get("sunset", "10:08 PM")
+    dark_min = pre_dawn.get("dark_minutes", 30)
+    print(f"\n  Pre-dawn: Start {race_cfg.get('start_time', '03:20')} AM, sunrise ~{sunrise}. Only ~{dark_min} min in the dark.")
     print("  Lights mandatory at start but you'll have daylight by mile 10.")
-    print("  Sunset ~10:08 PM. 18+ hours of daylight. No night riding.")
+    print(f"  Sunset ~{sunset}. 18+ hours of daylight. No night riding.")
     print("  Keep eating from the gun! Don't wait until you're hungry.")
 
     # 2025 race reference
@@ -2322,15 +2332,21 @@ def cmd_race_plan() -> None:
     print(f"{'─'*60}")
     print(f"  {'':>20} {'2025':>10} {'2026 Plan':>12}")
     print("  " + "-" * 44)
-    print(f"  {'FTP':>20} {'~262W':>10} {str(race_ftp)+'W':>12}")
-    print(f"  {'IF':>20} {'0.82':>10} {str(target_if):>12}")
-    print(f"  {'NP':>20} {'215W':>10} {str(np_target)+'W':>12}")
-    print(f"  {'Avg Power':>20} {'192W':>10} {'~'+str(avg_power)+'W':>12}")
+    ref_ftp = ref.get("ftp_estimated", 262)
+    ref_if = ref.get("if", 0.82)
+    ref_np = ref.get("np", 215)
+    ref_avg = ref.get("avg_power", 192)
+    ref_tss = ref.get("tss", 682)
+    ref_time = ref.get("time", "10h09m")
+    print(f"  {'FTP':>20} {'~'+str(ref_ftp)+'W':>10} {str(race_ftp)+'W':>12}")
+    print(f"  {'IF':>20} {str(ref_if):>10} {str(target_if):>12}")
+    print(f"  {'NP':>20} {str(ref_np)+'W':>10} {str(np_target)+'W':>12}")
+    print(f"  {'Avg Power':>20} {str(ref_avg)+'W':>10} {'~'+str(avg_power)+'W':>12}")
     print(f"  {'Drafting':>20} {'Solo':>10} {'Yes ({0}%)'.format(draft_pct):>12}")
     est_total = fmt_hrs(draft_total_hrs)
-    print(f"  {'Est. Total Time':>20} {'10h09m':>10} {est_total:>12}")
+    print(f"  {'Est. Total Time':>20} {ref_time:>10} {est_total:>12}")
     est_tss = round(tss_per_hr * draft_ride_hrs)
-    print(f"  {'TSS':>20} {'682':>10} {'~'+str(est_tss):>12}")
+    print(f"  {'TSS':>20} {str(ref_tss):>10} {'~'+str(est_tss):>12}")
 
     print("\n" + "=" * 60)
 
