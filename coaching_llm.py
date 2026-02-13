@@ -43,6 +43,43 @@ FORMATTING RULES:
 - Keep total length to 400-600 words."""
 
 
+def _parse_structure(structure_json: Optional[str], ftp: int) -> Optional[str]:
+    """Parse TP workout structure into human-readable interval description."""
+    if not structure_json:
+        return None
+    try:
+        data = json.loads(structure_json) if isinstance(structure_json, str) else structure_json
+        steps = data.get("structure", [])
+        intensity_metric = data.get("primaryIntensityMetric", "percentOfFtp")
+        parts = []
+        for block in steps:
+            for step in block.get("steps", []):
+                name = step.get("name", "Unknown")
+                length = step.get("length", {})
+                duration_sec = length.get("value", 0) if length.get("unit") == "second" else 0
+                duration_min = duration_sec // 60 if duration_sec else 0
+
+                targets = step.get("targets", [])
+                target_str = ""
+                if targets and intensity_metric == "percentOfFtp":
+                    low = targets[0].get("minValue", 0)
+                    high = targets[0].get("maxValue", 0)
+                    low_w = round(ftp * low / 100)
+                    high_w = round(ftp * high / 100)
+                    target_str = f" ({low}-{high}% FTP, {low_w}-{high_w}W)"
+
+                notes = step.get("notes", "")
+                note_str = f' — "{notes}"' if notes else ""
+
+                reps = block.get("length", {}).get("value", 1)
+                rep_str = f" x{reps}" if reps > 1 else ""
+
+                parts.append(f"{duration_min}min {name}{target_str}{rep_str}{note_str}")
+        return " → ".join(parts) if parts else None
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+
+
 def _get_coaching_data(conn) -> Dict[str, Any]:
     """Gather all data needed for the coaching assessment."""
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -98,22 +135,30 @@ def _get_coaching_data(conn) -> Dict[str, Any]:
     # This week's workouts (detail)
     monday = today - timedelta(days=today.weekday())
     sunday = monday + timedelta(days=6)
+    # Get FTP early for structure parsing
+    cur.execute("SELECT ftp_watts FROM ftp_history ORDER BY test_date DESC LIMIT 1")
+    ftp_row_early = cur.fetchone()
+    ftp_val = int(ftp_row_early["ftp_watts"]) if ftp_row_early else 263
+
     cur.execute("""
-        SELECT date, title, tss_actual, if_actual, np_actual,
+        SELECT date, title, tss_actual, tss_planned, if_actual, if_planned, np_actual,
                COALESCE(duration_actual_min, duration_planned_min) as duration,
-               workout_quality, completed
+               workout_quality, completed, workout_structure, notes
         FROM training_workouts
         WHERE date >= %s AND date <= %s
         ORDER BY date
     """, (monday, sunday))
     data["this_week_workouts"] = [
         {"date": str(w["date"]), "title": w["title"],
-         "tss": float(w["tss_actual"]) if w["tss_actual"] else None,
-         "if": float(w["if_actual"]) if w["if_actual"] else None,
+         "tss": float(w["tss_actual"]) if w["tss_actual"] else (float(w["tss_planned"]) if w["tss_planned"] else None),
+         "tss_planned": float(w["tss_planned"]) if w["tss_planned"] else None,
+         "if": float(w["if_actual"]) if w["if_actual"] else (float(w["if_planned"]) if w["if_planned"] else None),
          "np": float(w["np_actual"]) if w["np_actual"] else None,
          "duration_min": float(w["duration"]) if w["duration"] else None,
          "quality": float(w["workout_quality"]) if w["workout_quality"] else None,
-         "completed": w["completed"]}
+         "completed": w["completed"],
+         "structure": _parse_structure(w["workout_structure"], ftp_val),
+         "coach_notes": w["notes"]}
         for w in cur.fetchall()
     ]
 
@@ -304,11 +349,16 @@ def _build_user_prompt(data: Dict[str, Any]) -> str:
     for w in data["this_week_workouts"]:
         status = "✓" if w["completed"] else "planned"
         metrics = []
-        if w["tss"]: metrics.append(f"TSS {w['tss']:.0f}")
-        if w["if"]: metrics.append(f"IF {w['if']:.3f}")
+        if w["tss"]: metrics.append(f"TSS {w['tss']:.0f}" + (f" (planned)" if not w["completed"] and not w.get("np") else ""))
+        if w["if"]: metrics.append(f"IF {w['if']:.3f}" + (" (planned)" if not w["completed"] and not w.get("np") else ""))
         if w["np"]: metrics.append(f"NP {w['np']:.0f}W")
+        if w["duration_min"]: metrics.append(f"{w['duration_min']:.0f}min")
         if w["quality"]: metrics.append(f"quality {w['quality']:.1f}")
         lines.append(f"  {w['date']} {w['title']} [{status}] {', '.join(metrics)}")
+        if w.get("structure"):
+            lines.append(f"    Intervals: {w['structure']}")
+        if w.get("coach_notes"):
+            lines.append(f"    Coach notes: {w['coach_notes']}")
 
     lines.extend([
         "",

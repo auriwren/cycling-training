@@ -496,17 +496,18 @@ def sync_tp(days: int = 7) -> bool:
                         "workout_quality": quality,
                         "completed": completed,
                         "notes": w.get("description"),
+                        "workout_structure": json.dumps(w["structure"]) if w.get("structure") else None,
                     }
 
                     cur.execute("""
                         INSERT INTO training_workouts (date, source, external_id, title, workout_type,
                             tss_planned, if_planned, duration_planned_min, tss_actual, if_actual,
                             np_actual, avg_power, max_power, avg_hr, max_hr, duration_actual_min,
-                            efficiency_factor, workout_quality, completed, notes)
+                            efficiency_factor, workout_quality, completed, notes, workout_structure)
                         VALUES (%(date)s, %(source)s, %(external_id)s, %(title)s, %(workout_type)s,
                             %(tss_planned)s, %(if_planned)s, %(duration_planned_min)s, %(tss_actual)s, %(if_actual)s,
                             %(np_actual)s, %(avg_power)s, %(max_power)s, %(avg_hr)s, %(max_hr)s, %(duration_actual_min)s,
-                            %(efficiency_factor)s, %(workout_quality)s, %(completed)s, %(notes)s)
+                            %(efficiency_factor)s, %(workout_quality)s, %(completed)s, %(notes)s, %(workout_structure)s)
                         ON CONFLICT ON CONSTRAINT training_workouts_date_ext_id
                             DO UPDATE SET title = EXCLUDED.title, tss_planned = EXCLUDED.tss_planned,
                                 if_planned = EXCLUDED.if_planned, tss_actual = EXCLUDED.tss_actual,
@@ -514,7 +515,8 @@ def sync_tp(days: int = 7) -> bool:
                                 avg_power = EXCLUDED.avg_power, max_power = EXCLUDED.max_power,
                                 avg_hr = EXCLUDED.avg_hr, max_hr = EXCLUDED.max_hr,
                                 duration_actual_min = EXCLUDED.duration_actual_min,
-                                workout_quality = EXCLUDED.workout_quality, completed = EXCLUDED.completed
+                                workout_quality = EXCLUDED.workout_quality, completed = EXCLUDED.completed,
+                                workout_structure = COALESCE(EXCLUDED.workout_structure, training_workouts.workout_structure)
                     """, row)
                     count += 1
 
