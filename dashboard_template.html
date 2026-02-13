@@ -482,6 +482,7 @@ body {
     <a href="#training">Training</a>
     <a href="#race-plans">Race Plans</a>
     <a href="#coach">Coach</a>
+    <a href="#" onclick="document.getElementById('about-modal').style.display='flex';return false;">About</a>
   </div>
 </div>
 
@@ -1173,5 +1174,63 @@ new Chart(document.getElementById('ftpChart'), {
   }
 });
 </script>
+<!-- About Modal -->
+<div id="about-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:32px;position:relative">
+    <button onclick="document.getElementById('about-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:4px 8px">&times;</button>
+    <h2 style="margin:0 0 8px;color:var(--text-primary);font-size:22px">About This Dashboard</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin:0 0 20px">Cycling Training Intelligence System v1.0</p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">What It Is</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      A fully automated training analytics dashboard built for serious endurance cycling. It consolidates data from multiple sources into a single view, runs performance modeling, and generates a coaching assessment grounded in real numbers. The dashboard regenerates daily from live data with no manual input.
+    </p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Data Sources</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">TrainingPeaks</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Planned and completed workouts, TSS, IF, NP, duration. Coach-prescribed training plans. Power zones. Synced daily.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Whoop</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Recovery scores, HRV, resting heart rate, sleep duration and quality. Used for recovery-performance correlation analysis.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Strava</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Activity power zone distributions (time-in-zone from actual ride data), club events, social rides. Real power file analysis.</div>
+      </div>
+      <div style="background:var(--surface-elevated);border-radius:8px;padding:12px">
+        <div style="color:var(--text-primary);font-weight:600;font-size:13px;margin-bottom:4px">Open-Meteo</div>
+        <div style="color:var(--text-muted);font-size:12px;line-height:1.6">Weather forecasts for ride planning and race-day conditions. Kit recommendations based on temperature and wind.</div>
+      </div>
+    </div>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Architecture</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      Built in Python. All data is stored in PostgreSQL with dedicated tables for workouts, recovery, training load (PMC), FTP history, power zones, and generated insights. A template engine fills 78+ dynamic placeholders to produce this static HTML dashboard with Chart.js visualizations. The system runs as a CLI tool (<code style="color:var(--blue-light);font-size:13px">cycling-training</code>) with subcommands for syncing, analysis, and generation.
+    </p>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Analytics Engine</h3>
+    <ul style="color:var(--text-secondary);font-size:13px;line-height:2;padding-left:20px">
+      <li><strong>PMC Modeling:</strong> Chronic Training Load (CTL), Acute Training Load (ATL), and Training Stress Balance (TSB) calculated daily with exponential weighted averages</li>
+      <li><strong>FTP Projection:</strong> Based on actual normalized power trends from high-intensity workouts, not linear extrapolation</li>
+      <li><strong>Recovery-Performance Correlation:</strong> Statistical analysis across 178+ overlapping Whoop/TP days measuring how recovery metrics affect workout execution</li>
+      <li><strong>Workout Quality Scoring:</strong> Composite metric from TSS adherence and IF adherence vs. planned targets</li>
+      <li><strong>Race Modeling:</strong> Pacing, taper timing, and race-day CTL/TSB projections based on historical patterns</li>
+      <li><strong>Coaching Assessment:</strong> AI-generated narrative channeling periodization principles, refreshed daily with current data</li>
+    </ul>
+
+    <h3 style="color:var(--blue-light);font-size:15px;margin:20px 0 8px">Coaching Persona</h3>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.7">
+      The coaching assessment is written by an AI system prompt modeled on the methodologies of Hunter Allen, Joe Friel, and Andrew Coggan, with a focus on data-driven decision making for endurance athletes. Real coaching is provided by Max Blinderman via TrainingPeaks. The AI assessment synthesizes training data into actionable narrative; it supplements but does not replace the human coach.
+    </p>
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12px;text-align:center">
+      Built by Auri Wren &middot; Powered by PostgreSQL, Chart.js, and Python &middot; Source: github.com/auriwren/cycling-training (private)
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
