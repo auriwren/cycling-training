@@ -2121,68 +2121,131 @@ def _get_current_pmc() -> Dict[str, Any]:
     return {"ctl": 0, "atl": 0, "tsb": 0, "date": date.today()}
 
 
+def _calc_speed_kph(power_w: float, system_kg: float, cda: float, crr: float) -> float:
+    """Calculate speed on flat from power using cubic equation. Returns kph."""
+    import math
+    # P = Crr*m*g*v + 0.5*rho*CdA*v^3
+    # Solve iteratively
+    rho = 1.2  # air density kg/m3
+    g = 9.81
+    v = 8.0  # initial guess m/s
+    for _ in range(50):
+        f = crr * system_kg * g * v + 0.5 * rho * cda * v**3 - power_w
+        fp = crr * system_kg * g + 1.5 * rho * cda * v**2
+        if fp == 0:
+            break
+        v = v - f / fp
+        if v < 0:
+            v = 1.0
+    return v * 3.6
+
+
 def cmd_race_plan() -> None:
     """Vatternrundan pacing strategy."""
     current_ftp, ftp_date = _get_current_ftp()
-    projected_ftp = _project_ftp_at_race()
     days_to_race = (RACE_DATE - date.today()).days
 
+    # Load race config
+    race_cfg = CONFIG.get("race", {})
+    target_if = race_cfg.get("target_if", 0.80)
+    race_ftp = race_cfg.get("projected_race_ftp", 280)
+    rider_lbs = race_cfg.get("rider_weight_lbs", 186)
+    bike_lbs = race_cfg.get("bike_weight_lbs", 20)
+    cda = race_cfg.get("cda", 0.35)
+    crr = race_cfg.get("crr", 0.004)
+    draft_pct = race_cfg.get("drafting_benefit_pct", 20)
+    ref = race_cfg.get("reference_2025", {})
+    seg_pacing = race_cfg.get("segments_pacing", [])
+
+    system_kg = (rider_lbs + bike_lbs) / 2.205
+    np_target = round(target_if * race_ftp)
+    vi = 1.12  # variability index from 2025 data
+    avg_power = round(np_target / vi)
+    tss_per_hr = target_if ** 2 * 100
+    total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
+
+    # Speed calculations
+    solo_flat_kph = _calc_speed_kph(np_target, system_kg, cda, crr)
+    solo_flat_mph = solo_flat_kph * 0.6214
+    # Real course penalty: ~5% slower than flat (hills, wind, corners, fatigue)
+    solo_real_kph = solo_flat_kph * 0.95
+    solo_real_mph = solo_real_kph * 0.6214
+    # With drafting
+    draft_cda = cda * (1 - draft_pct / 100)
+    draft_kph = _calc_speed_kph(np_target, system_kg, draft_cda, crr) * 0.95
+    draft_mph = draft_kph * 0.6214
+
+    # Time estimates
+    solo_ride_hrs = RACE_DISTANCE_KM / solo_real_kph
+    draft_ride_hrs = RACE_DISTANCE_KM / draft_kph
+    solo_total_hrs = solo_ride_hrs + total_stop_min / 60
+    draft_total_hrs = draft_ride_hrs + total_stop_min / 60
+
+    def fmt_hrs(h):
+        return f"{int(h)}h{int((h - int(h)) * 60):02d}m"
+
     print("=" * 60)
-    print("    🏁 VATTERNRUNDAN RACE PLAN")
-    print(f"    {RACE_DATE} | Start 03:20 AM | {RACE_DISTANCE_KM}km / 196mi | Target: sub-{RACE_TARGET_HOURS:.0f} hours")
+    print("    🏁 VÄTTERNRUNDAN RACE PLAN")
+    print(f"    {RACE_DATE} | Start {race_cfg.get('start_time', '03:20')} AM | {RACE_DISTANCE_KM}km / {round(RACE_DISTANCE_KM * 0.6214)}mi | Target: sub-{RACE_TARGET_HOURS:.0f} hours")
     print("=" * 60)
+
     print(f"\n  Days to race: {days_to_race}")
     print(f"  Current FTP: {current_ftp}W (as of {ftp_date})")
-    print(f"  Projected FTP at race: ~{projected_ftp}W")
-    print(f"  Required avg speed: {RACE_TARGET_AVG_KPH} kph")
+    print(f"  Race-day FTP (projected): {race_ftp}W")
+    print(f"  Rider: {rider_lbs} lbs + {bike_lbs} lbs bike = {round(system_kg)} kg system")
 
-    for ftp_label, ftp_val in [("Current FTP", current_ftp), ("Projected race-day FTP", projected_ftp)]:
-        print(f"\n{'─'*60}")
-        print(f"  📊 PACING @ {ftp_label}: {ftp_val}W")
-        print(f"{'─'*60}")
+    # Pacing overview
+    print(f"\n{'─'*60}")
+    print(f"  📊 PACING: IF {target_if:.2f} @ {race_ftp}W FTP")
+    print(f"{'─'*60}")
+    print(f"  Target NP: {np_target}W ({target_if*100:.0f}% FTP)")
+    print(f"  Est avg power: ~{avg_power}W (VI {vi})")
+    print(f"  W/kg: {np_target/system_kg*2.205:.2f} NP / {avg_power/system_kg*2.205:.2f} avg (per lb)")
+    print(f"  Climb cap: {round(race_ftp * 0.85)}W (85% FTP) | Hard limit: {round(race_ftp * 0.90)}W (90%)")
 
-        # Overall target NP range: 175-180W target based on athlete's race goals
-        # At projected 277W FTP this is 63-65% FTP
-        np_target_low = 175
-        np_target_high = 180
-        np_pct_low = np_target_low / ftp_val if ftp_val else 0
-        np_pct_high = np_target_high / ftp_val if ftp_val else 0
-        print(f"  Target NP: {np_target_low}-{np_target_high}W ({np_pct_low*100:.0f}-{np_pct_high*100:.0f}% FTP)")
-        print(f"  Climb cap: {round(ftp_val * 0.75)}W (75% FTP) | Hard limit: {round(ftp_val * 0.80)}W (80%)")
+    # Segment breakdown from config
+    if seg_pacing:
+        print(f"\n  {'Segment':<38} {'Km':>7} {'%FTP':>8} {'Watts':>10}")
+        print("  " + "-" * 66)
+        for seg in seg_pacing:
+            pct_low = seg["pct_low"]
+            pct_high = seg["pct_high"]
+            w_low = round(race_ftp * pct_low)
+            w_high = round(race_ftp * pct_high)
+            print(f"  {seg['name']:<38} {seg['km']:>7} {pct_low*100:.0f}-{pct_high*100:.0f}%  {w_low}-{w_high}W")
+            if seg.get("notes"):
+                print(f"    -> {seg['notes']}")
 
-        # Segment breakdown
-        print(f"\n  {'Segment':<38} {'Km':>7} {'%FTP':>7} {'Watts':>7}")
-        print("  " + "-" * 62)
+    # Speed & time estimates
+    print(f"\n{'─'*60}")
+    print(f"  ⏱️  SPEED & TIME ESTIMATES (physics-based)")
+    print(f"{'─'*60}")
+    print(f"  Assumptions: CdA {cda}, Crr {crr}, air density 1.2 kg/m³")
+    print(f"  Course penalty: 5% off flat speed (hills, wind, corners)")
+    print(f"  Drafting: {draft_pct}% aero drag reduction (riding with friend + groups)")
+    print(f"\n  {'Scenario':<28} {'Speed':>12} {'Ride':>8} {'Stops':>7} {'Total':>8}")
+    print("  " + "-" * 66)
+    print(f"  {'Solo, flat, no wind':<28} {solo_flat_mph:.1f} mph     {'—':>8} {'—':>7} {'—':>8}")
+    print(f"  {'Solo, real course':<28} {solo_real_mph:.1f} mph  {fmt_hrs(solo_ride_hrs):>8} {total_stop_min:>5}min {fmt_hrs(solo_total_hrs):>8}")
+    print(f"  {'With {0}% draft'.format(draft_pct):<28} {draft_mph:.1f} mph  {fmt_hrs(draft_ride_hrs):>8} {total_stop_min:>5}min {fmt_hrs(draft_total_hrs):>8}")
 
-        segments_pacing = [
-            ("First 100km (discipline!)", "0-100", 0.60, 0.63),
-            ("Km 100-230 (rhythm)", "100-230", 0.63, 0.67),
-            ("Km 230-315 (finish strong)", "230-315", 0.67, 0.72),
-        ]
-        for seg_name, km_range, pct_low, pct_high in segments_pacing:
-            w_low = round(ftp_val * pct_low)
-            w_high = round(ftp_val * pct_high)
-            pct_str = f"{pct_low*100:.0f}-{pct_high*100:.0f}%"
-            print(f"  {seg_name:<38} {km_range:>7} {pct_str:>7} {w_low}-{w_high:>3}W")
+    # Conservative/optimistic range
+    draft_lo_cda = cda * (1 - 15 / 100)
+    draft_lo_kph = _calc_speed_kph(np_target, system_kg, draft_lo_cda, crr) * 0.95
+    draft_lo_ride = RACE_DISTANCE_KM / draft_lo_kph
+    draft_lo_total = draft_lo_ride + total_stop_min / 60
+    draft_hi_cda = cda * (1 - 25 / 100)
+    draft_hi_kph = _calc_speed_kph(np_target, system_kg, draft_hi_cda, crr) * 0.95
+    draft_hi_ride = RACE_DISTANCE_KM / draft_hi_kph
+    draft_hi_total = draft_hi_ride + total_stop_min / 60
+    print(f"  {'With 15% draft (conservative)':<28} {draft_lo_kph*0.6214:.1f} mph  {fmt_hrs(draft_lo_ride):>8} {total_stop_min:>5}min {fmt_hrs(draft_lo_total):>8}")
+    print(f"  {'With 25% draft (optimistic)':<28} {draft_hi_kph*0.6214:.1f} mph  {fmt_hrs(draft_hi_ride):>8} {total_stop_min:>5}min {fmt_hrs(draft_hi_total):>8}")
 
-        # Flat/climb targets
-        flat_low = round(ftp_val * 0.62)
-        flat_high = round(ftp_val * 0.65)
-        climb_max = round(ftp_val * 0.75)
-        print(f"\n  Flat sections: {flat_low}-{flat_high}W (62-65% FTP)")
-        print(f"  Climbs: up to {climb_max}W (75% FTP max)")
-
-        # Estimated TSS based on 175-180W NP target
-        avg_np = (np_target_low + np_target_high) / 2
-        est_if = avg_np / ftp_val if ftp_val else 0.65
-        est_duration_hrs = RACE_TARGET_HOURS
-        est_tss = round(est_if * est_if * est_duration_hrs * 100)
-        # Total time includes ~54 min of stops
-        total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
-        ride_time_hrs = RACE_TARGET_HOURS - total_stop_min / 60
-        print(f"\n  Estimated TSS: ~{est_tss} (IF ~{est_if:.2f} over {ride_time_hrs:.1f}hrs riding)")
-        print(f"  Stop time: ~{total_stop_min} min across 4 stops")
-        print(f"  Total elapsed: ~{RACE_TARGET_HOURS:.0f}hrs (ride + stops)")
+    # TSS
+    print(f"\n  TSS estimate: {round(tss_per_hr * draft_ride_hrs)} (IF {target_if:.2f} x {fmt_hrs(draft_ride_hrs)} riding)")
+    print(f"  2025 comparison: TSS 682 (IF 0.82 x 10h09m, solo)")
+    tss_diff = round(tss_per_hr * draft_ride_hrs) - 682
+    print(f"  Delta: {tss_diff:+d} TSS ({abs(round(tss_diff/682*100))}% {'less' if tss_diff < 0 else 'more'} total stress)")
 
     # Course profile
     print(f"\n{'─'*60}")
@@ -2190,15 +2253,16 @@ def cmd_race_plan() -> None:
     print(f"{'─'*60}")
     for seg in VATTERN_SEGMENTS:
         dist = seg["km_end"] - seg["km_start"]
-        print(f"\n  Km {seg['km_start']}-{seg['km_end']} ({dist}km): {seg['name']}")
+        dist_mi = round(dist * 0.6214)
+        print(f"\n  Km {seg['km_start']}-{seg['km_end']} ({dist}km / {dist_mi}mi): {seg['name']}")
         print(f"    Terrain: {seg['terrain']}")
         print(f"    Strategy: {seg['notes']}")
 
-    # Rest stop strategy (max 4 stops)
+    # Rest stop strategy
     print(f"\n{'─'*60}")
     print("  🍌 REST STOP / FUELING STRATEGY (4 stops max)")
     print(f"{'─'*60}")
-    print("  Start: 03:20 AM, June 13. Riding with a friend.")
+    print(f"  Start: {race_cfg.get('start_time', '03:20')} AM, June 13. Riding with a friend.")
     print("")
     print("  PRIMARY FUEL: Formula 369 (30g carbs/scoop, 1:1 glucose:fructose)")
     print("    3 bottles: 2 in cages + 1 flexible rubber bottle")
@@ -2208,21 +2272,23 @@ def cmd_race_plan() -> None:
     print("  AT STOPS: Pickles (sodium), bread buns, blueberry soup")
     print("  Jönköping: Hot meal (Swedish meatballs, mashed potatoes)")
     print("  Hydration: 16-24 oz/hour depending on temp.")
-    total_stop_min = sum(s["stop_min"] for s in REST_STOPS)
     print(f"  Total stop time budget: ~{total_stop_min} min")
+
+    # Use draft speed for stop timing (primary scenario)
+    avg_kph = draft_kph
+    print(f"\n  Timing based on {draft_mph:.1f} mph avg ({draft_pct}% draft)")
     print(f"\n  {'Stop':<25} {'Mi':>4} {'Elapsed':>8} {'Clock':>7} {'Stop':>5} {'Action'}")
     print("  " + "-" * 85)
     cumulative_stop_min = 0
+    start_h = int(race_cfg.get("start_time", "03:20").split(":")[0])
+    start_m = int(race_cfg.get("start_time", "03:20").split(":")[1])
     for stop in REST_STOPS:
-        # Riding time to this point (excluding previous stop time)
-        ride_hrs = stop["km"] / RACE_TARGET_AVG_KPH
-        # Add cumulative stop time from previous stops
+        ride_hrs = stop["km"] / avg_kph
         total_elapsed_min = ride_hrs * 60 + cumulative_stop_min
         total_elapsed_hrs = total_elapsed_min / 60
         h = int(total_elapsed_hrs)
         m = int((total_elapsed_hrs - h) * 60)
-        # Clock time based on 03:20 start
-        clock_total_min = 3 * 60 + 20 + total_elapsed_min
+        clock_total_min = start_h * 60 + start_m + total_elapsed_min
         clock_h = int(clock_total_min // 60) % 24
         clock_m = int(clock_total_min % 60)
         am_pm = "AM" if clock_h < 12 else "PM"
@@ -2232,19 +2298,40 @@ def cmd_race_plan() -> None:
         print(f"  {stop['name']:<25} {stop['mi']:>3}mi  {h}h{m:02d}m  {clock_h_12}:{clock_m:02d}{am_pm} {stop['stop_min']:>3}min  {stop['action']}")
         cumulative_stop_min += stop["stop_min"]
 
-    print(f"\n  Pre-dawn: Start 03:20 AM, sunrise ~03:51 AM. Only ~30 min in the dark.")
+    print(f"\n  Pre-dawn: Start {race_cfg.get('start_time', '03:20')} AM, sunrise ~03:51 AM. Only ~30 min in the dark.")
     print("  Lights mandatory at start but you'll have daylight by mile 10.")
     print("  Sunset ~10:08 PM. 18+ hours of daylight. No night riding.")
     print("  Keep eating from the gun! Don't wait until you're hungry.")
 
     # 2025 race reference
+    if ref:
+        print(f"\n{'─'*60}")
+        print("  📋 2025 VÄTTERNRUNDAN REFERENCE (June 14, solo)")
+        print(f"{'─'*60}")
+        print(f"  Time: {ref.get('time','10h09m')} | Distance: {ref.get('distance_mi',196)} mi | TSS: {ref.get('tss',682)} | IF: {ref.get('if',0.82)}")
+        print(f"  NP: {ref.get('np',215)}W | Avg: {ref.get('avg_power',192)}W | Max: {ref.get('max_power',797)}W")
+        print(f"  HR: avg {ref.get('avg_hr',142)} / max {ref.get('max_hr',168)} / min {ref.get('min_hr',91)}")
+        print(f"  Elevation: {ref.get('elevation_ft',5850):,} ft | Calories: {ref.get('calories',7002):,}")
+        print(f"  Cadence: avg {ref.get('cadence_avg',84)} / max {ref.get('cadence_max',118)}")
+        print(f"  Temp: {ref.get('temp_min_f',41)}-{ref.get('temp_max_f',73)}°F | Start: {ref.get('start_time','02:41')} AM")
+        print(f"  PRs: {ref.get('prs',4)}")
+
+    # Key comparison
     print(f"\n{'─'*60}")
-    print("  📋 2025 VÄTTERNRUNDAN REFERENCE (June 14, solo)")
+    print("  📊 2025 vs 2026 COMPARISON")
     print(f"{'─'*60}")
-    print("  Time: 10h09m | Distance: 196 mi | TSS: 682 | IF: 0.82")
-    print("  NP: 215W | Avg: 192W | Avg HR: 142 | Max HR: 168")
-    print("  Elevation: 5,850 ft | Calories: 7,002 | Cadence: 84")
-    print("  Feeling: 1 (great) | PRs: 4")
+    print(f"  {'':>20} {'2025':>10} {'2026 Plan':>12}")
+    print("  " + "-" * 44)
+    print(f"  {'FTP':>20} {'~262W':>10} {str(race_ftp)+'W':>12}")
+    print(f"  {'IF':>20} {'0.82':>10} {str(target_if):>12}")
+    print(f"  {'NP':>20} {'215W':>10} {str(np_target)+'W':>12}")
+    print(f"  {'Avg Power':>20} {'192W':>10} {'~'+str(avg_power)+'W':>12}")
+    print(f"  {'Drafting':>20} {'Solo':>10} {'Yes ({0}%)'.format(draft_pct):>12}")
+    est_total = fmt_hrs(draft_total_hrs)
+    print(f"  {'Est. Total Time':>20} {'10h09m':>10} {est_total:>12}")
+    est_tss = round(tss_per_hr * draft_ride_hrs)
+    print(f"  {'TSS':>20} {'682':>10} {'~'+str(est_tss):>12}")
+
     print("\n" + "=" * 60)
 
 
