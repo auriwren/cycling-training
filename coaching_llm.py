@@ -215,10 +215,24 @@ def _get_coaching_data(conn) -> Dict[str, Any]:
     data["recovery_quality_corr"] = round(float(corr_val or 0), 3)
 
     # FTP
-    cur.execute("SELECT ftp_watts, test_date FROM ftp_history ORDER BY test_date DESC LIMIT 1")
+    cur.execute("SELECT ftp_watts, test_date, test_protocol, confidence, notes FROM ftp_history ORDER BY test_date DESC LIMIT 1")
     ftp_row = cur.fetchone()
     data["current_ftp"] = int(ftp_row["ftp_watts"]) if ftp_row else 0
     data["ftp_test_date"] = str(ftp_row["test_date"]) if ftp_row else "unknown"
+    data["ftp_protocol"] = ftp_row["test_protocol"] if ftp_row else "unknown"
+    data["ftp_confidence"] = ftp_row["confidence"] if ftp_row else "unknown"
+
+    # Annotations (flu/sick weeks, injuries, etc.)
+    cur.execute("""
+        SELECT date, notes FROM daily_performance
+        WHERE notes IS NOT NULL AND notes != ''
+        ORDER BY date
+    """)
+    annotations = cur.fetchall()
+    data["annotations"] = [
+        {"date": str(a["date"]), "note": a["notes"]}
+        for a in annotations
+    ]
 
     # Race config
     race_cfg = cfg.get("race_plan", {})
@@ -266,7 +280,7 @@ def _build_user_prompt(data: Dict[str, Any]) -> str:
         f"Today is {data['date']}. Generate the daily coaching assessment.",
         "",
         f"ATHLETE: {data['athlete_name']}",
-        f"FTP: {data['current_ftp']}W (last tested {data['ftp_test_date']})",
+        f"FTP: {data['current_ftp']}W (method: {data['ftp_protocol']}, confidence: {data['ftp_confidence']}, date: {data['ftp_test_date']}). NOTE: 'estimated' means derived from workout data, NOT from an actual FTP test. Do not say the athlete 'tested at' this FTP unless the protocol is 'ramp_test' or '20min_test'.",
         f"Race: Vätternrundan in {data['days_to_vatternrundan']} days, Halvvättern in {data['days_to_halvvattern']} days",
         f"Race plan: IF {data['race_target_if']}, NP {data['race_np']:.0f}W at projected {data['race_ftp']}W FTP, {data['draft_pct']}% drafting benefit",
         "",
@@ -332,6 +346,13 @@ def _build_user_prompt(data: Dict[str, Any]) -> str:
         f"SLEEP: 7-day avg {data['sleep_avg_7d']}h, 30-day avg {data['sleep_avg_30d']}h",
         f"HRV: 7-day avg {data['hrv_avg_7d']}ms",
     ])
+
+    # Add annotations if any exist
+    if data.get("annotations"):
+        lines.extend(["", "ANNOTATIONS (illness, injury, travel, etc.):"])
+        for a in data["annotations"]:
+            lines.append(f"  {a['date']}: {a['note']}")
+        lines.append("IMPORTANT: When you see low TSS weeks that overlap with annotations (flu, injury, travel), attribute the dip to the annotated cause. Do not speculate about other reasons.")
 
     return "\n".join(lines)
 
