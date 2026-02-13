@@ -711,16 +711,14 @@ __WEEK_WORKOUT_ROWS__
       <div class="table-scroll"><table class="segment-table">
         <thead><tr><th>Segment</th><th>Distance</th><th>Power @ __PROJ_RACE_FTP__W FTP</th></tr></thead>
         <tbody>
-          <tr><td>First 100 km</td><td>0-62 mi</td><td>__RACE_SEG1_POWER__</td></tr>
-          <tr><td>Km 100-230</td><td>62-143 mi</td><td>__RACE_SEG2_POWER__</td></tr>
-          <tr><td>Km 230-315</td><td>143-196 mi</td><td>__RACE_SEG3_POWER__</td></tr>
+          __RACE_SEGMENTS_ROWS__
         </tbody>
       </table></div>
       <div class="mini-stats" style="margin-top:12px">
-        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">175-180W</div><div class="lbl">Target NP</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--red-light)">__RACE_CLIMB_CAP__W</div><div class="lbl">Climb Cap (75%)</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~411</div><div class="lbl">Est. TSS</div></div>
-        <div class="mini-stat"><div class="val" style="color:var(--green-light)">IF 0.64</div><div class="lbl">Target IF</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">__RACE_TARGET_NP__W</div><div class="lbl">Target NP</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--red-light)">__RACE_CLIMB_CAP__W</div><div class="lbl">Climb Cap (__RACE_CLIMB_CAP_PCT__%)</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--blue-light)">~__RACE_EST_TSS__</div><div class="lbl">Est. TSS</div></div>
+        <div class="mini-stat"><div class="val" style="color:var(--green-light)">IF __RACE_TARGET_IF__</div><div class="lbl">Target IF</div></div>
       </div>
 
       <h3 style="margin-top:16px">2025 Race Comparison</h3>
@@ -728,9 +726,9 @@ __WEEK_WORKOUT_ROWS__
         <thead><tr><th>Metric</th><th>2025 (Solo)</th><th>2026 Target</th></tr></thead>
         <tbody>
           <tr><td>Time</td><td>10h09m</td><td>&lt;10h00m</td></tr>
-          <tr><td>NP</td><td>215W</td><td>175-180W</td></tr>
-          <tr><td>IF</td><td>0.82</td><td>~0.64</td></tr>
-          <tr><td>TSS</td><td>682</td><td>~411</td></tr>
+          <tr><td>NP</td><td>215W</td><td>__RACE_TARGET_NP__W</td></tr>
+          <tr><td>IF</td><td>0.82</td><td>__RACE_TARGET_IF__</td></tr>
+          <tr><td>TSS</td><td>682</td><td>~__RACE_EST_TSS__</td></tr>
           <tr><td>Avg HR</td><td>142</td><td>TBD</td></tr>
           <tr><td>Start</td><td>Morning</td><td>03:20 AM</td></tr>
           <tr><td>Style</td><td>Solo, pushed hard</td><td>With friend (drafting + morale)</td></tr>
@@ -738,7 +736,7 @@ __WEEK_WORKOUT_ROWS__
       </table></div>
       <div class="insight-card" style="margin-top:12px;border-color:var(--green);background:rgba(34,197,94,0.06)">
         <div class="type" style="color:var(--green)">2025 vs 2026 Analysis</div>
-        2025 was ridden solo at IF 0.82 / NP 215W &mdash; quite aggressive for a 10-hour effort. The fact __ATHLETE_FIRST__ finished strong (feeling: 1/great) shows deep endurance capacity. 2026 target of IF ~0.64 is far more disciplined pacing, especially in the first half. With a friend for drafting (20-30% energy savings) and better pacing, sub-10 is very achievable.
+        2025 was ridden solo at IF 0.82 / NP 215W &mdash; quite aggressive for a 10-hour effort. The fact __ATHLETE_FIRST__ finished strong (feeling: 1/great) shows deep endurance capacity. 2026 target of IF __RACE_TARGET_IF__ at __PROJ_RACE_FTP__W FTP (NP __RACE_TARGET_NP__W) is a smart strategy. Lower relative effort than 2025 but higher absolute power due to FTP gains. With a friend for drafting (__RACE_DRAFT_PCT__% aero savings) and disciplined pacing, sub-10 is very achievable.
       </div>
     </div>
 

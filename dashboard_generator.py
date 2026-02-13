@@ -33,13 +33,14 @@ DEFAULT_FTP = 0
 FASTMAIL_UPLOAD_URL = ""
 FASTMAIL_UPLOAD_USER = ""
 _CONFIG_LOADED = False
+CONFIG = {}
 
 
 def init_config() -> bool:
     global DB_CONN, PROJECT_DIR, ATHLETE_NAME, ATHLETE_FIRST, COACH_NAME, COACH_FIRST
     global TEMPLATE_PATH, OUTPUT_PATH, FASTMAIL_ENV, FASTMAIL_UPLOAD_URL, FASTMAIL_UPLOAD_USER
     global HALVVATTERN_DATE, VATTERNRUNDAN_DATE
-    global FTP_TARGET, DEFAULT_FTP, _CONFIG_LOADED
+    global FTP_TARGET, DEFAULT_FTP, _CONFIG_LOADED, CONFIG
 
     if _CONFIG_LOADED:
         return True
@@ -70,6 +71,7 @@ def init_config() -> bool:
     FTP_TARGET = config["ftp"]["target_ftp"]
     DEFAULT_FTP = config["ftp"]["default_ftp"]
 
+    CONFIG = config
     _CONFIG_LOADED = True
     return True
 
@@ -709,11 +711,34 @@ def generate_dashboard(upload: bool = False) -> None:
     weeks_to_race = max(0, vatt_days / 7)
     proj_race_ftp = round(ftp + weekly_gain * weeks_to_race)
 
-    # Race segment power targets
-    race_seg1 = f"{round(proj_race_ftp * 0.56)}-{round(proj_race_ftp * 0.61)}W ({56}-{61}%)"
-    race_seg2 = f"{round(proj_race_ftp * 0.61)}-{round(proj_race_ftp * 0.65)}W ({61}-{65}%)"
-    race_seg3 = f"{round(proj_race_ftp * 0.65)}-{round(proj_race_ftp * 0.70)}W ({65}-{70}%)"
-    race_climb_cap = round(proj_race_ftp * 0.75)
+    # Race config values
+    race_cfg = CONFIG.get("race", {})
+    target_if = race_cfg.get("target_if", 0.80)
+    race_ftp_cfg = race_cfg.get("projected_race_ftp", proj_race_ftp)
+    draft_pct = race_cfg.get("drafting_benefit_pct", 20)
+    climb_cap_pct = race_cfg.get("climb_cap_pct", 0.85)
+    seg_pacing = race_cfg.get("segments_pacing", [])
+    vi = race_cfg.get("variability_index", 1.12)
+
+    race_np = round(target_if * race_ftp_cfg)
+    race_avg = round(race_np / vi)
+    tss_per_hr = target_if ** 2 * 100
+    # Estimate ride hours (rough: distance / estimated speed)
+    est_ride_hrs = 9.0  # approximate
+    race_est_tss = round(tss_per_hr * est_ride_hrs)
+
+    # Build segment rows from config
+    seg_rows = ""
+    for seg in seg_pacing:
+        pct_low = seg["pct_low"]
+        pct_high = seg["pct_high"]
+        w_low = round(race_ftp_cfg * pct_low)
+        w_high = round(race_ftp_cfg * pct_high)
+        seg_rows += f'<tr><td>{_escape(seg["name"])}</td><td>{seg["km"]}</td><td>{w_low}-{w_high}W ({pct_low*100:.0f}-{pct_high*100:.0f}%)</td></tr>\n          '
+    if not seg_rows:
+        seg_rows = f'<tr><td>Full course</td><td>0-315km</td><td>{race_np}W (IF {target_if})</td></tr>'
+
+    race_climb_cap = round(race_ftp_cfg * climb_cap_pct)
 
     # Phase indicator
     if days_to_race > 84:
@@ -866,11 +891,14 @@ def generate_dashboard(upload: bool = False) -> None:
         "__INSIGHT_FTP__": insight_ftp,
         "__PROJ_RACE_CTL__": f"~{ctl_proj:.0f}",
         "__PROJ_RACE_TSB__": f"+{tsb_proj:.0f}" if tsb_proj > 0 else f"{tsb_proj:.0f}",
-        "__PROJ_RACE_FTP__": str(proj_race_ftp),
-        "__RACE_SEG1_POWER__": race_seg1,
-        "__RACE_SEG2_POWER__": race_seg2,
-        "__RACE_SEG3_POWER__": race_seg3,
+        "__PROJ_RACE_FTP__": str(race_ftp_cfg),
+        "__RACE_SEGMENTS_ROWS__": seg_rows,
         "__RACE_CLIMB_CAP__": str(race_climb_cap),
+        "__RACE_CLIMB_CAP_PCT__": str(round(climb_cap_pct * 100)),
+        "__RACE_TARGET_NP__": str(race_np),
+        "__RACE_TARGET_IF__": str(target_if),
+        "__RACE_EST_TSS__": str(race_est_tss),
+        "__RACE_DRAFT_PCT__": str(draft_pct),
         "__PHASE_INDICATOR__": phase,
         "__COACHING_TEXT__": coaching_text,
         "__GENERATED_DATE__": today.strftime("%b %d, %Y"),
