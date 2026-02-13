@@ -14,6 +14,7 @@ import psycopg2
 import psycopg2.extras
 import requests
 
+from coaching_llm import generate_coaching_assessment
 from config import ConfigError, get_config, get_path
 
 DB_CONN = ""
@@ -750,77 +751,15 @@ def generate_dashboard(upload: bool = False) -> None:
     else:
         phase = "🟢 Current Phase: TAPER"
 
-    # ── Coaching assessment ──
-    # Gather all coaching variables
-    cur.execute("""
-        SELECT date_trunc('week', date)::date as week_start,
-               COALESCE(SUM(tss_actual), 0) as tss
-        FROM training_workouts
-        WHERE date >= %s AND completed = true
-        GROUP BY week_start ORDER BY week_start
-    """, (today - timedelta(days=84),))
-    recent_weeks = cur.fetchall()
-    avg_weekly_tss = sum(float(r["tss"]) for r in recent_weeks) / len(recent_weeks) if recent_weeks else 0
-    last4_weeks = recent_weeks[-4:] if len(recent_weeks) >= 4 else recent_weeks
-    last4_avg_tss = sum(float(r["tss"]) for r in last4_weeks) / len(last4_weeks) if last4_weeks else 0
-
-    # Count consecutive weeks above 350
-    consec_350 = 0
-    for w in reversed(recent_weeks):
-        if float(w["tss"]) >= 350:
-            consec_350 += 1
-        else:
-            break
-
-    # Weeks of training
-    cur.execute("SELECT MIN(date) FROM training_workouts WHERE completed = true")
-    first_workout = cur.fetchone()
-    first_date = first_workout[0] if first_workout and first_workout[0] else today
-    weeks_training = max(1, (today - first_date).days // 7)
-
-    # Latest workout
-    cur.execute("""
-        SELECT title, workout_quality, date FROM training_workouts
-        WHERE completed = true AND workout_quality IS NOT NULL
-        ORDER BY date DESC LIMIT 1
-    """)
-    latest_wk = cur.fetchone()
-    latest_name_raw = latest_wk["title"] if latest_wk else "N/A"
-    latest_name = _escape(latest_name_raw)
-    latest_quality = float(latest_wk["workout_quality"]) if latest_wk else 0
-    latest_date = latest_wk["date"].strftime("%b %d") if latest_wk else "N/A"
-
-    # Average quality score
-    cur.execute("SELECT AVG(workout_quality) as avg_q FROM training_workouts WHERE workout_quality IS NOT NULL")
-    avg_quality = float(cur.fetchone()["avg_q"] or 0)
-
-    # CTL start value (earliest in training_load)
-    cur.execute("SELECT ctl FROM training_load ORDER BY date ASC LIMIT 1")
-    ctl_start_row = cur.fetchone()
-    ctl_start_val = float(ctl_start_row["ctl"]) if ctl_start_row else 0
-
-    # Coach-aware framing
-    has_coach = bool(COACH_NAME and COACH_NAME.lower() not in ("coach", "none", ""))
-    if has_coach:
-        coach_intro = f'''<p><em>This analysis supplements {ATHLETE_FIRST}'s training under coach {COACH_NAME}. {COACH_FIRST}'s prescribed workouts and periodization are the primary plan; the data below provides objective context to support that coaching relationship.</em></p>'''
-        coach_rec_prefix = f"To discuss with {COACH_FIRST}: "
-        race_framing = f"{COACH_FIRST}'s periodization has {ATHLETE_FIRST} well-positioned"
-    else:
-        coach_intro = ""
-        coach_rec_prefix = ""
-        race_framing = f"{ATHLETE_FIRST} is well-positioned"
-
-    coaching_text = f'''{coach_intro}
-
-    <p><strong>Current Fitness Trajectory:</strong> {ATHLETE_FIRST}'s CTL has grown from {ctl_start_val:.0f} to {ctl:.1f} over {weeks_training} weeks of training. Average weekly TSS over the last 12 weeks is {avg_weekly_tss:.0f}, with the last four weeks averaging {last4_avg_tss:.0f}. {f"{consec_350} consecutive weeks above 350 TSS, " if consec_350 > 0 else ""}Completion rate of {completion_rate:.0f}%. {"The training load " + COACH_FIRST + " has prescribed is being executed consistently." if has_coach else "Building consistently with strong weekly loads."}</p>
-
-    <p><strong>What the Data Says:</strong> Three things stand out. <strong>Consistency</strong>: {completion_rate:.1f}% overall completion rate{f", {streak}-workout streak recently" if streak > 3 else ""}. <strong>Mental toughness</strong>: workout quality on red recovery days ({qual_red}) is virtually identical to green days ({qual_green}). Recovery score correlates at r={corr_rq:.2f} with quality; statistically {'zero' if abs(corr_rq) < 0.15 else 'weak'}. {ATHLETE_FIRST} executes regardless of how {"he feels" if True else "they feel"}, and the data confirms this works. <strong>Quality</strong>: average score {avg_quality:.1f}, with the most recent {latest_name} hitting {latest_quality:.1f} on {latest_date}.</p>
-
-    <p><strong>Areas to Watch:</strong> Recovery trending {rec_30d_str} over the last month. Sleep averaging {avg_sleep_all:.1f} hours; target 7.5+ for optimal adaptation in a loading phase. HRV at {hrv_7d_avg:.1f}ms is {'stable but not climbing, which would be the ideal signal' if abs(hrv_7d_avg - good_hrv_avg) < 5 else 'showing movement'}. None are red flags, but worth monitoring as build phase intensity increases.</p>
-
-    <p><strong>Race Readiness:</strong> At {vatt_days} days out, {race_framing}. CTL {ctl:.1f} provides a solid platform; target is 55-65 with TSB +15 to +25 on race day. The taper model projects CTL ~{ctl_proj:.0f}, TSB ~{tsb_proj:+.0f}. The 2026 pacing strategy (IF {target_if}, NP {race_np}W at {race_ftp_cfg}W FTP) reflects a smart approach: lower relative effort than 2025's aggressive IF 0.82, but higher absolute power due to FTP gains. Combined with {draft_pct}% drafting benefit from a riding partner, the physics support a sub-{round(race_cfg.get('target_hours', 10))} hour finish.</p>
-
-    <p><strong>{"Observations for " + COACH_FIRST if has_coach else "Recommendations"}:</strong> {coach_rec_prefix}(1) Sleep optimization: 7.5+ hours during heavy loading phases. (2) Practice race-day fueling protocol on every long ride to train the gut. (3) FTP test ~{next_test_date} to calibrate zones. (4) One 150+ mile ride with riding partner to practice pacing and logistics together. (5) Race Halvv&auml;ttern hard June 6, taper through June 12. (6) Practice the 2 AM wake-up before race week.</p>'''
+    # ── Coaching assessment (LLM-powered) ──
+    # Open a fresh connection for the coaching module (main conn stays open for replacements)
+    coaching_conn = psycopg2.connect(DB_CONN)
+    try:
+        coaching_text = generate_coaching_assessment(coaching_conn)
+    except Exception as e:
+        coaching_text = f"<p><em>Coaching assessment generation failed: {e}</em></p>"
+    finally:
+        coaching_conn.close()
 
     cur.close()
     conn.close()
