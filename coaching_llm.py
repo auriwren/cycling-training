@@ -152,7 +152,8 @@ def _get_coaching_data(conn) -> Dict[str, Any]:
         {"date": str(w["date"]), "title": w["title"],
          "tss": float(w["tss_actual"]) if w["tss_actual"] else (float(w["tss_planned"]) if w["tss_planned"] else None),
          "tss_planned": float(w["tss_planned"]) if w["tss_planned"] else None,
-         "if": float(w["if_actual"]) if w["if_actual"] else (float(w["if_planned"]) if w["if_planned"] else None),
+         "if": float(w["if_actual"]) if w["if_actual"] else None,
+         "if_planned": float(w["if_planned"]) if w["if_planned"] else None,
          "np": float(w["np_actual"]) if w["np_actual"] else None,
          "duration_min": float(w["duration"]) if w["duration"] else None,
          "quality": float(w["workout_quality"]) if w["workout_quality"] else None,
@@ -342,18 +343,31 @@ def _build_user_prompt(data: Dict[str, Any]) -> str:
     if data["load_change_pct"] != 0:
         lines.append(f"  Week-over-week load change: {data['load_change_pct']:+.1f}%")
 
+    # Calculate weekly totals
+    completed_tss = sum(w["tss"] for w in data["this_week_workouts"] if w["completed"] and w["tss"])
+    remaining_tss = sum(w["tss_planned"] for w in data["this_week_workouts"] if not w["completed"] and w["tss_planned"])
+    projected_week_tss = completed_tss + remaining_tss
+    completed_count = sum(1 for w in data["this_week_workouts"] if w["completed"])
+    remaining_count = sum(1 for w in data["this_week_workouts"] if not w["completed"])
+
     lines.extend([
         "",
-        "THIS WEEK'S WORKOUTS:",
+        f"THIS WEEK'S PLAN (Mon-Sun): {completed_count} completed ({completed_tss:.0f} TSS), {remaining_count} remaining ({remaining_tss:.0f} TSS planned), projected week total: {projected_week_tss:.0f} TSS",
+        "Full schedule:",
     ])
     for w in data["this_week_workouts"]:
-        status = "✓" if w["completed"] else "planned"
+        status = "✓ DONE" if w["completed"] else "UPCOMING"
         metrics = []
-        if w["tss"]: metrics.append(f"TSS {w['tss']:.0f}" + (f" (planned)" if not w["completed"] and not w.get("np") else ""))
-        if w["if"]: metrics.append(f"IF {w['if']:.3f}" + (" (planned)" if not w["completed"] and not w.get("np") else ""))
-        if w["np"]: metrics.append(f"NP {w['np']:.0f}W")
-        if w["duration_min"]: metrics.append(f"{w['duration_min']:.0f}min")
-        if w["quality"]: metrics.append(f"quality {w['quality']:.1f}")
+        if w["completed"]:
+            if w["tss"]: metrics.append(f"TSS {w['tss']:.0f}")
+            if w["if"]: metrics.append(f"IF {w['if']:.3f}")
+            if w["np"]: metrics.append(f"NP {w['np']:.0f}W")
+            if w["duration_min"]: metrics.append(f"{w['duration_min']:.0f}min")
+            if w["quality"]: metrics.append(f"quality {w['quality']:.1f}")
+        else:
+            if w["tss_planned"]: metrics.append(f"TSS {w['tss_planned']:.0f} planned")
+            if w["if_planned"]: metrics.append(f"IF {w['if_planned']:.3f} planned")
+            if w["duration_min"]: metrics.append(f"{w['duration_min']:.0f}min planned")
         lines.append(f"  {w['date']} {w['title']} [{status}] {', '.join(metrics)}")
         if w.get("structure"):
             lines.append(f"    Intervals: {w['structure']}")
