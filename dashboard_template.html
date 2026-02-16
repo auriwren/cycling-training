@@ -473,6 +473,14 @@ body {
   </div>
 </div>
 
+<!-- DATE NAVIGATION -->
+<div id="date-nav" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 0;margin-bottom:8px;font-size:14px">
+  <button id="nav-prev" onclick="navDate(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:14px" title="Previous day">&larr;</button>
+  <input type="date" id="nav-picker" value="__DASHBOARD_DATE__" style="background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:6px 10px;font-size:14px;cursor:pointer;color-scheme:dark" />
+  <button id="nav-next" onclick="navDate(1)" style="background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:14px" title="Next day">&rarr;</button>
+  <span id="nav-label" style="color:var(--text-muted);font-size:12px"></span>
+</div>
+
 <!-- SECTION NAV -->
 <div class="section-nav">
   <div class="section-nav-inner">
@@ -1152,27 +1160,106 @@ new Chart(document.getElementById('npTrendChart'), {
   }
 });
 
-// FTP Projection Chart (data-driven)
+// FTP Projection Chart (data-driven) with phase background shading
 const ftpMonths = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-// Base plateau Feb-Mar, build phase gains Apr-Jun, continued gains Jul-Dec
 const ftpProjection = __FTP_PROJECTION_DATA__;
+// Plugin to draw colored background bands for training phases
+const phaseBackgroundPlugin = {
+  id:'phaseBackground',
+  beforeDraw(chart) {
+    const {ctx,chartArea:{left,right,top,bottom},scales:{x}} = chart;
+    const phases = [
+      {start:0, end:2, color:'rgba(234,179,8,0.10)', label:'Base', labelColor:'rgba(234,179,8,0.6)'},
+      {start:2, end:4, color:'rgba(249,115,22,0.10)', label:'Build', labelColor:'rgba(249,115,22,0.7)'},
+      {start:4, end:5, color:'rgba(239,68,68,0.10)', label:'Peak', labelColor:'rgba(239,68,68,0.6)'},
+    ];
+    phases.forEach(p => {
+      const x0 = x.getPixelForValue(p.start);
+      const x1 = x.getPixelForValue(p.end);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(x0, top, x1 - x0, bottom - top);
+      ctx.fillStyle = p.labelColor;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.label, (x0 + x1) / 2, top + 12);
+    });
+  }
+};
 new Chart(document.getElementById('ftpChart'), {
   type:'line',
   data:{
     labels:ftpMonths,
     datasets:[
       {label:'Projected FTP',data:ftpProjection,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.3,pointRadius:3},
-      {label:'300W Target',data:ftpMonths.map(()=>300),borderColor:'rgba(34,197,94,0.4)',borderDash:[6,4],pointRadius:0,fill:false},
-      {label:'Base Phase',data:[263,263,265,null,null,null,null,null,null,null,null],borderColor:'rgba(234,179,8,0.6)',borderWidth:3,pointRadius:0,fill:false,tension:0.3},
-      {label:'Build Phase',data:[null,null,265,272,278,null,null,null,null,null,null],borderColor:'rgba(249,115,22,0.8)',borderWidth:3,pointRadius:0,fill:false,tension:0.3}
+      {label:'300W Target',data:ftpMonths.map(()=>300),borderColor:'rgba(34,197,94,0.4)',borderDash:[6,4],pointRadius:0,fill:false}
     ]
   },
+  plugins:[phaseBackgroundPlugin],
   options:{
     responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{position:'top',labels:{boxWidth:12,padding:8}}},
+    plugins:{legend:{position:'top',labels:{boxWidth:12,padding:8,filter:item=>item.text!=='Phase'}}},
     scales:{x:{grid:{display:false}},y:{min:255,max:310,title:{display:true,text:'Watts'}}}
   }
 });
+
+// Date navigation for dashboard archive
+(function(){
+  const BASE = '__PUBLIC_BASE_URL__' || window.location.pathname.replace(/\/[^/]*$/,'');
+  const TODAY = '__DASHBOARD_DATE__';
+  const picker = document.getElementById('nav-picker');
+  const label = document.getElementById('nav-label');
+  const prevBtn = document.getElementById('nav-prev');
+  const nextBtn = document.getElementById('nav-next');
+  let manifest = [];
+
+  // Check if we're viewing an archived date (URL contains /YYYY-MM-DD/)
+  const archiveMatch = window.location.pathname.match(/\/(\d{4}-\d{2}-\d{2})\//);
+  const viewingDate = archiveMatch ? archiveMatch[1] : TODAY;
+  picker.value = viewingDate;
+  if (viewingDate === TODAY) {
+    label.textContent = '(latest)';
+    nextBtn.disabled = true;
+    nextBtn.style.opacity = '0.3';
+  }
+
+  fetch(BASE + '/manifest.json').then(r=>r.json()).then(dates=>{
+    manifest = dates;
+    // Disable prev if we're at the earliest date
+    if (manifest.length && viewingDate <= manifest[0]) {
+      prevBtn.disabled = true;
+      prevBtn.style.opacity = '0.3';
+    }
+  }).catch(()=>{
+    // No manifest yet, hide nav
+    document.getElementById('date-nav').style.display = 'none';
+  });
+
+  window.navDate = function(dir) {
+    if (!manifest.length) return;
+    const idx = manifest.indexOf(viewingDate);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= manifest.length) return;
+    const target = manifest[newIdx];
+    if (target === TODAY) {
+      window.location.href = BASE + '/';
+    } else {
+      window.location.href = BASE + '/' + target + '/';
+    }
+  };
+
+  picker.addEventListener('change', function(){
+    const val = this.value;
+    if (!val) return;
+    if (val === TODAY) {
+      window.location.href = BASE + '/';
+    } else if (manifest.includes(val)) {
+      window.location.href = BASE + '/' + val + '/';
+    } else {
+      alert('No dashboard archived for ' + val);
+      this.value = viewingDate;
+    }
+  });
+})();
 </script>
 <!-- About Modal -->
 <div id="about-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">

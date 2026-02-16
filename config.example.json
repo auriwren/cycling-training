@@ -232,7 +232,8 @@
     "output_path": "dashboard.html",
     "athlete_name": "Athlete",
     "coach_name": "Coach",
-    "upload_url": "https://your-webdav-server.com/path/dashboard.html",
+    "upload_base_url": "https://your-webdav-server.com/path/cycling-dashboard",
+    "public_base_url": "https://your-site.com/cycling-dashboard",
     "upload_user": "your@email.com",
     "_upload_comment": "WebDAV URL and user for --upload. Password comes from fastmail.env (FASTMAIL_FILES_PASSWORD)."
   }

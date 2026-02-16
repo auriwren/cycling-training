@@ -39,7 +39,7 @@ CONFIG = {}
 
 def init_config() -> bool:
     global DB_CONN, PROJECT_DIR, ATHLETE_NAME, ATHLETE_FIRST, COACH_NAME, COACH_FIRST
-    global TEMPLATE_PATH, OUTPUT_PATH, FASTMAIL_ENV, FASTMAIL_UPLOAD_URL, FASTMAIL_UPLOAD_USER
+    global TEMPLATE_PATH, OUTPUT_PATH, FASTMAIL_ENV, FASTMAIL_UPLOAD_BASE, PUBLIC_BASE_URL, FASTMAIL_UPLOAD_USER
     global HALVVATTERN_DATE, VATTERNRUNDAN_DATE
     global FTP_TARGET, DEFAULT_FTP, _CONFIG_LOADED, CONFIG
 
@@ -64,7 +64,8 @@ def init_config() -> bool:
     TEMPLATE_PATH = PROJECT_DIR / dash_config.get("template_path", "dashboard_template.html")
     OUTPUT_PATH = PROJECT_DIR / dash_config.get("output_path", "dashboard.html")
     FASTMAIL_ENV = get_path(config["credentials"]["fastmail_env"])
-    FASTMAIL_UPLOAD_URL = dash_config.get("upload_url", "")
+    FASTMAIL_UPLOAD_BASE = dash_config.get("upload_base_url", "")
+    PUBLIC_BASE_URL = dash_config.get("public_base_url", "")
     FASTMAIL_UPLOAD_USER = dash_config.get("upload_user", "")
 
     HALVVATTERN_DATE = date.fromisoformat(config["race"]["halvvattern_date"])
@@ -771,6 +772,8 @@ def generate_dashboard(upload: bool = False) -> None:
         "__HALV_DAYS__": str(halv_days),
         "__VATT_DAYS__": str(vatt_days),
         "__HEADER_DATE__": today.strftime("%b %d, %Y"),
+        "__DASHBOARD_DATE__": today.isoformat(),
+        "__PUBLIC_BASE_URL__": PUBLIC_BASE_URL,
         "__FTP__": str(ftp),
         "__CTL__": f"{ctl:.1f}",
         "__ATL__": f"{atl:.1f}",
@@ -880,14 +883,52 @@ def generate_dashboard(upload: bool = False) -> None:
         if not password:
             print("❌ Upload failed: FASTMAIL_FILES_PASSWORD not found in fastmail.env")
             return
-        with OUTPUT_PATH.open("rb") as handle:
-            resp = requests.put(
-                FASTMAIL_UPLOAD_URL,
-                data=handle,
-                auth=(user, password),
-                timeout=30,
-            )
-        if resp.ok:
-            print("✅ Uploaded to Fastmail")
+        auth = (user, password)
+        today_str = date.today().isoformat()
+
+        def _webdav_put(url: str, data: bytes) -> bool:
+            resp = requests.put(url, data=data, auth=auth, timeout=30)
+            return resp.ok
+
+        def _webdav_mkcol(url: str) -> bool:
+            """Create a WebDAV collection (directory). 201=created, 405=exists."""
+            resp = requests.request("MKCOL", url.rstrip("/") + "/", auth=auth, timeout=15)
+            return resp.status_code in (201, 405, 301)
+
+        dashboard_bytes = OUTPUT_PATH.read_bytes()
+
+        # 1. Upload current dashboard to /cycling-dashboard/index.html
+        _webdav_mkcol(FASTMAIL_UPLOAD_BASE)
+        current_url = f"{FASTMAIL_UPLOAD_BASE}/index.html"
+        if _webdav_put(current_url, dashboard_bytes):
+            print("✅ Uploaded current dashboard")
         else:
-            print(f"❌ Upload failed: HTTP {resp.status_code} {resp.text.strip()}")
+            print(f"❌ Upload failed for {current_url}")
+
+        # 2. Upload dated archive to /cycling-dashboard/YYYY-MM-DD/index.html
+        _webdav_mkcol(f"{FASTMAIL_UPLOAD_BASE}/{today_str}")
+        archive_url = f"{FASTMAIL_UPLOAD_BASE}/{today_str}/index.html"
+        if _webdav_put(archive_url, dashboard_bytes):
+            print(f"✅ Archived to {today_str}/")
+        else:
+            print(f"❌ Archive failed for {archive_url}")
+
+        # 3. Update manifest (list of archived dates)
+        manifest_url = f"{FASTMAIL_UPLOAD_BASE}/manifest.json"
+        manifest_dates: list = []
+        try:
+            r = requests.get(
+                f"{PUBLIC_BASE_URL}/manifest.json" if PUBLIC_BASE_URL else manifest_url,
+                timeout=10,
+            )
+            if r.ok:
+                manifest_dates = r.json()
+        except Exception:
+            pass
+        if today_str not in manifest_dates:
+            manifest_dates.append(today_str)
+            manifest_dates.sort()
+        if _webdav_put(manifest_url, json.dumps(manifest_dates).encode()):
+            print(f"✅ Manifest updated ({len(manifest_dates)} dates)")
+        else:
+            print("❌ Manifest upload failed")
