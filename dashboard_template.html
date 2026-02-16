@@ -1204,7 +1204,9 @@ new Chart(document.getElementById('ftpChart'), {
 
 // Date navigation for dashboard archive
 (function(){
-  const BASE = '__PUBLIC_BASE_URL__' || window.location.pathname.replace(/\/[^/]*$/,'');
+  // Use relative path from current location to avoid CORS issues with www vs non-www
+  const pathMatch = window.location.pathname.match(/^(\/cycling-dashboard)/);
+  const BASE = pathMatch ? pathMatch[1] : '__PUBLIC_BASE_URL__';
   const TODAY = '__DASHBOARD_DATE__';
   const picker = document.getElementById('nav-picker');
   const label = document.getElementById('nav-label');
