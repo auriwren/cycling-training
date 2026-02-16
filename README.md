@@ -1,6 +1,6 @@
 # Cycling Training Intelligence System
 
-An automated training analytics platform for serious endurance cyclists. Consolidates data from multiple sources into PostgreSQL, runs performance modeling, and generates a comprehensive HTML dashboard with AI coaching assessment.
+An automated training analytics platform for serious endurance cyclists. Consolidates data from multiple sources into PostgreSQL, runs performance modeling, and generates a comprehensive HTML dashboard with AI-powered coaching assessment.
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-336791)
@@ -12,8 +12,9 @@ An automated training analytics platform for serious endurance cyclists. Consoli
 - **Calculates Performance Management Chart (PMC)** with CTL, ATL, and TSB using exponential weighted averages
 - **Projects FTP trajectory** based on actual normalized power trends from high-intensity workouts
 - **Correlates recovery and performance** across overlapping Whoop/TrainingPeaks data to quantify how recovery metrics affect workout execution
-- **Generates race plans** with pacing targets, taper protocols, and race-day projections
-- **Produces an HTML dashboard** with 10+ Chart.js visualizations and an AI coaching assessment
+- **Generates physics-based race plans** with Newton-Raphson speed calculations, segment pacing, nutrition strategy, and taper protocols
+- **Produces an HTML dashboard** with 10+ Chart.js visualizations, 84 live data placeholders, and an LLM-powered coaching assessment
+- **Deploys to Vercel** with edge middleware authentication, daily date-based archives, and calendar navigation
 - **Runs daily via cron** to keep everything fresh with zero manual input
 
 ## Data Sources
@@ -25,18 +26,29 @@ An automated training analytics platform for serious endurance cyclists. Consoli
 | **Strava** | Per-activity power zone distributions (real time-in-zone from ride files), club events | OAuth2 |
 | **Open-Meteo** | Weather forecasts for ride planning and race-day conditions | Public API (no auth) |
 
-## Dashboard Sections
+## Dashboard
 
-1. **Header KPIs** - Race countdowns, FTP, CTL/ATL/TSB at a glance
-2. **This Week** - Completed + upcoming workouts, weekly progress, PMC trend, recovery
-3. **Training Load** - 20-week TSS bar chart with PMC overlay
-4. **Power Zone Distribution** - Donut chart from real Strava power data mapped to coach-defined zones
-5. **Recovery Dashboard** - 30-day recovery, HRV, and sleep trends with correlation analysis
-6. **Workout Quality** - Quality scoring by recovery bracket, trend over time
-7. **FTP Trajectory** - Data-driven projection based on monthly NP trends
-8. **Key Insights** - Auto-generated findings from correlation engine
-9. **Race Plans** - Collapsible race-specific pacing, stops, fueling, taper (configurable)
-10. **Coaching Assessment** - AI-generated narrative grounded in current data
+### Sections
+1. **Date Navigation** - Calendar picker and prev/next arrows to browse daily archives
+2. **Header KPIs** - Race countdowns, FTP, CTL/ATL/TSB at a glance
+3. **This Week** - Completed + upcoming workouts, weekly TSS progress, PMC trend, recovery summary
+4. **Training Load** - 20-week TSS bar chart with PMC overlay (CTL, ATL, TSB lines)
+5. **Power Zone Distribution** - Donut chart from real Strava power data mapped to coach-defined zones
+6. **Recovery Dashboard** - 30-day recovery, HRV, and sleep trends with correlation analysis
+7. **Workout Quality** - Quality scoring by recovery bracket, trend over time
+8. **FTP Trajectory** - Data-driven projection with training phase background bands (Base/Build/Peak)
+9. **Key Insights** - Auto-generated findings from correlation engine (recovery, HRV, sleep, consistency, FTP outlook)
+10. **Race Plans** - Collapsible race-specific pacing with physics-based speed calculations, stop strategy, nutrition plan, taper protocol
+11. **Coaching Assessment** - LLM-generated narrative analysis grounded in current week's data
+
+### Hosting & Auth
+- **Deployed to Vercel** with automatic SSL and CDN edge caching
+- **Cookie-based authentication** via Vercel Edge Middleware (HMAC-signed, 30-day persistence)
+- **Daily archives** at `/cycling-dashboard/YYYY-MM-DD/` with a manifest-driven date picker
+- **Configurable upload backends**: Vercel (default) or WebDAV (legacy)
+
+### Template System
+The dashboard is generated from an HTML template with **84 data placeholders** filled from SQL queries. Chart.js data arrays, coaching text, race segments, workout rows, and all KPIs are injected at generation time. The template includes responsive mobile layout with a sticky header.
 
 ## Architecture
 
@@ -58,11 +70,12 @@ An automated training analytics platform for serious endurance cyclists. Consoli
 │  └──────────────┘  └──────────────────────────┘ │
 ├─────────────────────────────────────────────────┤
 │            Dashboard Generator                   │
-│  template.html + 78 placeholders → dashboard.html│
+│  template.html + 84 placeholders → dashboard.html│
 │  Chart.js data arrays generated from SQL queries │
-│  Coaching text templated with live numbers       │
+│  LLM coaching assessment via chat completions API│
 ├─────────────────────────────────────────────────┤
-│         Upload (WebDAV / local file)             │
+│     Upload: Vercel CLI deploy (or WebDAV)        │
+│     + daily archive + manifest.json              │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -103,19 +116,31 @@ cycling-training <command> [options]
 ### Utilities
 | Command | Description |
 |---------|-------------|
-| `generate-dashboard [--upload]` | Generate HTML dashboard from current data |
+| `generate-dashboard [--upload]` | Generate HTML dashboard and optionally deploy |
 | `strava-events` | Upcoming Strava club group rides |
 | `weather [LOCATION]` | Weather forecast + cycling kit recommendation |
 
+## Configuration
+
+All user-specific settings live in `config.json` (gitignored). Copy `config.example.json` to get started.
+
+Key configuration sections:
+- **database** - PostgreSQL connection string
+- **credentials** - Paths to `.env` files for each service (Whoop, TP, Strava, Fastmail, Vercel)
+- **dashboard** - Athlete/coach names, template paths, upload method (`vercel` or `webdav`), site directory
+- **ftp** - Current FTP, target FTP, projection parameters
+- **race** - Race dates, course parameters (CdA, Crr, system weight, air density), segment definitions, stop strategy
+- **zones** - Power zone boundaries and labels
+
 ## Origins & Standalone Use
 
-This tool was originally built for use with [OpenClaw](https://github.com/openclaw/openclaw), an AI assistant platform. Within OpenClaw, the daily sync and dashboard generation run as cron jobs, the coaching assessment uses OpenClaw's LLM access, and credentials are managed through OpenClaw's credential store.
+This tool was originally built for use with [OpenClaw](https://github.com/openclaw/openclaw), an AI assistant platform. Within OpenClaw, the daily sync and dashboard generation run as cron jobs, the coaching assessment uses OpenClaw's LLM gateway, and credentials are managed through OpenClaw's credential store.
 
 **To run standalone (without OpenClaw):**
 - All data sync, analytics, and dashboard generation work independently. No OpenClaw dependency for core functionality.
-- The **coaching assessment** text in the dashboard is generated via an LLM API call (currently OpenAI). You'll need an `OPENAI_API_KEY` environment variable, or you can skip it (the dashboard renders fine without coaching text).
-- Credentials are read from simple `.env` files (key=value format). Set paths in `config.json` or use the defaults.
-- The `--upload` flag on `generate-dashboard` uses Fastmail WebDAV to publish the HTML. For standalone use, skip `--upload` and serve the generated file however you like, or point the upload config at your own WebDAV/S3/etc.
+- The **coaching assessment** is generated via an LLM chat completions API. Configure the endpoint and API key in `config.json`, or skip it (the dashboard renders fine without coaching text).
+- Credentials are read from simple `.env` files (key=value format). Set paths in `config.json`.
+- The `--upload` flag on `generate-dashboard` deploys to Vercel by default. Set `upload_method: "webdav"` in config for legacy WebDAV upload, or skip `--upload` and serve the generated file however you like.
 
 ## Setup
 
@@ -123,30 +148,23 @@ This tool was originally built for use with [OpenClaw](https://github.com/opencl
 - Python 3.10+
 - PostgreSQL (any recent version)
 - Python packages: `psycopg2` (or `psycopg2-binary`), `requests`
+- Optional: Vercel CLI (`npm i -g vercel`) for deployment
 - Optional: `openai` Python package (for coaching assessment generation)
 
 ### Database
 Create the required tables by running the CLI for the first time (tables auto-create) or see the schema in the source.
 
 ### Credentials
-Store in environment files (paths configurable):
+Store in environment files (paths configurable in `config.json`):
 - **Whoop**: `WHOOP_ACCESS_TOKEN`, `WHOOP_REFRESH_TOKEN`
 - **TrainingPeaks**: `TP_AUTH_COOKIE`, `TP_USER_ID`
 - **Strava**: `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_ACCESS_TOKEN`, `STRAVA_REFRESH_TOKEN`
-
-### Configuration
-Environment variables for the dashboard generator:
-- `CT_DB_CONN` - PostgreSQL connection string (default: `dbname=auri_memory`)
-- `CT_PROJECT_DIR` - Project directory path
-- `CT_ATHLETE_NAME` - Athlete's full name (for dashboard header)
-- `CT_ATHLETE_FIRST` - Athlete's first name (for coaching text)
-- `CT_COACH_NAME` - Coach's full name
-- `CT_COACH_FIRST` - Coach's first name
+- **Vercel**: `VERCEL_API_KEY` (for deployment)
 
 ### Automation
 Set up a daily cron to sync data and regenerate the dashboard:
 ```bash
-# Example: sync at 10 PM, generate dashboard
+# Sync fresh data, recalculate PMC, generate and deploy
 cycling-training sync-all --days 3
 cycling-training pmc
 cycling-training generate-dashboard --upload
@@ -166,8 +184,11 @@ Calculates Pearson correlation between Whoop recovery scores and workout quality
 ### Workout Quality Scoring
 Composite metric from TSS adherence (actual vs. planned) and IF adherence (actual vs. planned), weighted and clamped to 0-100. Duration-weighted for multi-workout days.
 
+### Race Plan Speed Calculator
+Physics-based Newton-Raphson solver accounting for aerodynamic drag (CdA), rolling resistance (Crr), system weight, air density, and gradient. Applies a configurable course penalty factor and drafting benefit. All parameters externalized to `config.json`.
+
 ### Coaching Assessment
-AI-generated text using a system prompt modeled on the periodization methodologies of Hunter Allen, Joe Friel, and Andrew Coggan. Templated with 20+ live data points (CTL, completion rate, correlation values, FTP trajectory, recovery trends). Refreshed daily with current numbers.
+LLM-powered narrative generated via chat completions API. The data brief includes the full week's training schedule (completed and upcoming workouts with TSS), PMC status, recovery trends, FTP confidence level, and illness annotations. Uses a coaching persona grounded in periodization methodologies. When a coach is configured, frames analysis as supplementary to the coaching relationship.
 
 ## Project History
 
@@ -176,9 +197,10 @@ This project evolved through a structured review-driven development process:
 - **Phase 2**: PMC calculation, post-ride analysis, FTP projection
 - **Phase 3**: Strava integration, weather, GitHub repo
 - **Phase 4**: Recovery-training correlation engine
-- **Phase 5**: Race planning, taper protocol, dashboard
+- **Phase 5**: Race planning with physics-based speed calculator, dashboard generation
 - **Code review**: Codex (GPT-5.2) audit found and fixed 20 issues
 - **UX review**: Screenshot-based UI analysis led to layout restructuring
+- **Dashboard hosting**: Migrated from Fastmail WebDAV to Vercel with edge auth and daily archives
 
 See [CODE-REVIEW.md](CODE-REVIEW.md) and [UX-REVIEW.md](UX-REVIEW.md) for the full review artifacts.
 
