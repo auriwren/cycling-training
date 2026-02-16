@@ -40,7 +40,7 @@ CONFIG = {}
 def init_config() -> bool:
     global DB_CONN, PROJECT_DIR, ATHLETE_NAME, ATHLETE_FIRST, COACH_NAME, COACH_FIRST
     global TEMPLATE_PATH, OUTPUT_PATH, FASTMAIL_ENV, FASTMAIL_UPLOAD_BASE, PUBLIC_BASE_URL, FASTMAIL_UPLOAD_USER
-    global HALVVATTERN_DATE, VATTERNRUNDAN_DATE
+    global HALVVATTERN_DATE, VATTERNRUNDAN_DATE, DASH_CONFIG
     global FTP_TARGET, DEFAULT_FTP, _CONFIG_LOADED, CONFIG
 
     if _CONFIG_LOADED:
@@ -53,6 +53,7 @@ def init_config() -> bool:
         return False
 
     dash_config = config.get("dashboard", {})
+    DASH_CONFIG = dash_config
     DB_CONN = os.environ.get("CT_DB_CONN", config["database"]["connection"])
     PROJECT_DIR = Path(
         os.environ.get("CT_PROJECT_DIR", get_path(dash_config.get("project_dir", ".")))
@@ -876,59 +877,140 @@ def generate_dashboard(upload: bool = False) -> None:
     print(f"✅ Dashboard generated: {OUTPUT_PATH}")
 
     if upload:
-        print("📤 Uploading to Fastmail...")
-        env = load_env(FASTMAIL_ENV)
-        password = env.get("FASTMAIL_FILES_PASSWORD")
-        user = env.get("FASTMAIL_FILES_USER", FASTMAIL_UPLOAD_USER or "user")
-        if not password:
-            print("❌ Upload failed: FASTMAIL_FILES_PASSWORD not found in fastmail.env")
-            return
-        auth = (user, password)
         today_str = date.today().isoformat()
+        upload_method = DASH_CONFIG.get("upload_method", "vercel")
 
-        def _webdav_put(url: str, data: bytes) -> bool:
-            resp = requests.put(url, data=data, auth=auth, timeout=30)
-            return resp.ok
-
-        def _webdav_mkcol(url: str) -> bool:
-            """Create a WebDAV collection (directory). 201=created, 405=exists."""
-            resp = requests.request("MKCOL", url.rstrip("/") + "/", auth=auth, timeout=15)
-            return resp.status_code in (201, 405, 301)
-
-        dashboard_bytes = OUTPUT_PATH.read_bytes()
-
-        # 1. Upload current dashboard to /cycling-dashboard/index.html
-        _webdav_mkcol(FASTMAIL_UPLOAD_BASE)
-        current_url = f"{FASTMAIL_UPLOAD_BASE}/index.html"
-        if _webdav_put(current_url, dashboard_bytes):
-            print("✅ Uploaded current dashboard")
+        if upload_method == "vercel":
+            _upload_vercel(DASH_CONFIG, today_str)
         else:
-            print(f"❌ Upload failed for {current_url}")
+            _upload_webdav(DASH_CONFIG, today_str)
 
-        # 2. Upload dated archive to /cycling-dashboard/YYYY-MM-DD/index.html
-        _webdav_mkcol(f"{FASTMAIL_UPLOAD_BASE}/{today_str}")
-        archive_url = f"{FASTMAIL_UPLOAD_BASE}/{today_str}/index.html"
-        if _webdav_put(archive_url, dashboard_bytes):
-            print(f"✅ Archived to {today_str}/")
-        else:
-            print(f"❌ Archive failed for {archive_url}")
 
-        # 3. Update manifest (list of archived dates)
-        manifest_url = f"{FASTMAIL_UPLOAD_BASE}/manifest.json"
-        manifest_dates: list = []
+def _upload_vercel(dash_config: dict, today_str: str) -> None:
+    """Deploy dashboard files to Vercel using the deployments API."""
+    import hashlib
+    import subprocess
+
+    print("📤 Deploying to Vercel...")
+
+    vercel_env_path = get_path(
+        dash_config.get("vercel_env", "~/.openclaw/credentials/vercel.env")
+    )
+    env = load_env(vercel_env_path)
+    token = env.get("VERCEL_API_KEY", "")
+    if not token:
+        print("❌ Deploy failed: VERCEL_API_KEY not found")
+        return
+
+    site_dir = get_path(dash_config.get("vercel_site_dir", "/tmp/eiwe-me-site"))
+    if not site_dir.exists():
+        print(f"❌ Deploy failed: site dir {site_dir} not found")
+        return
+
+    dashboard_bytes = OUTPUT_PATH.read_bytes()
+
+    # Update files in the site directory
+    cycling_dir = site_dir / "cycling-dashboard"
+    cycling_dir.mkdir(exist_ok=True)
+    (cycling_dir / "index.html").write_bytes(dashboard_bytes)
+
+    # Archive
+    archive_dir = cycling_dir / today_str
+    archive_dir.mkdir(exist_ok=True)
+    (archive_dir / "index.html").write_bytes(dashboard_bytes)
+
+    # Update manifest
+    manifest_path = cycling_dir / "manifest.json"
+    manifest_dates: list = []
+    if manifest_path.exists():
         try:
-            r = requests.get(
-                f"{PUBLIC_BASE_URL}/manifest.json" if PUBLIC_BASE_URL else manifest_url,
-                timeout=10,
-            )
-            if r.ok:
-                manifest_dates = r.json()
+            manifest_dates = json.loads(manifest_path.read_text())
         except Exception:
             pass
-        if today_str not in manifest_dates:
-            manifest_dates.append(today_str)
-            manifest_dates.sort()
-        if _webdav_put(manifest_url, json.dumps(manifest_dates).encode()):
-            print(f"✅ Manifest updated ({len(manifest_dates)} dates)")
+    # Also try fetching from live site
+    if not manifest_dates:
+        public_url = dash_config.get("public_base_url", "")
+        if public_url:
+            try:
+                r = requests.get(f"{public_url}/manifest.json", timeout=10)
+                if r.ok:
+                    manifest_dates = r.json()
+            except Exception:
+                pass
+    if today_str not in manifest_dates:
+        manifest_dates.append(today_str)
+        manifest_dates.sort()
+    manifest_path.write_text(json.dumps(manifest_dates))
+    print(f"✅ Manifest updated ({len(manifest_dates)} dates)")
+
+    # Deploy via vercel CLI
+    try:
+        result = subprocess.run(
+            ["vercel", "deploy", "--prod", "--yes", "--token", token],
+            cwd=str(site_dir),
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env={**os.environ, "VERCEL_ORG_ID": "", "FORCE_COLOR": "0"},
+        )
+        if result.returncode == 0:
+            print("✅ Deployed to Vercel")
         else:
-            print("❌ Manifest upload failed")
+            print(f"❌ Vercel deploy failed: {result.stderr[-200:]}")
+    except Exception as exc:
+        print(f"❌ Vercel deploy error: {exc}")
+
+
+def _upload_webdav(dash_config: dict, today_str: str) -> None:
+    """Upload dashboard files via WebDAV (legacy Fastmail method)."""
+    print("📤 Uploading via WebDAV...")
+
+    fastmail_env_path = get_path(
+        dash_config.get("fastmail_env", "~/.openclaw/credentials/fastmail.env")
+    )
+    env = load_env(fastmail_env_path)
+    password = env.get("FASTMAIL_FILES_PASSWORD")
+    user = env.get("FASTMAIL_FILES_USER", dash_config.get("upload_user", "user"))
+    upload_base = dash_config.get("upload_base_url", "")
+
+    if not password:
+        print("❌ Upload failed: FASTMAIL_FILES_PASSWORD not found")
+        return
+
+    auth = (user, password)
+
+    def _webdav_put(url: str, data: bytes) -> bool:
+        resp = requests.put(url, data=data, auth=auth, timeout=30)
+        return resp.ok
+
+    def _webdav_mkcol(url: str) -> bool:
+        resp = requests.request("MKCOL", url.rstrip("/") + "/", auth=auth, timeout=15)
+        return resp.status_code in (201, 405, 301)
+
+    dashboard_bytes = OUTPUT_PATH.read_bytes()
+
+    _webdav_mkcol(upload_base)
+    if _webdav_put(f"{upload_base}/index.html", dashboard_bytes):
+        print("✅ Uploaded current dashboard")
+
+    _webdav_mkcol(f"{upload_base}/{today_str}")
+    if _webdav_put(f"{upload_base}/{today_str}/index.html", dashboard_bytes):
+        print(f"✅ Archived to {today_str}/")
+
+    manifest_url = f"{upload_base}/manifest.json"
+    public_url = dash_config.get("public_base_url", "")
+    manifest_dates: list = []
+    try:
+        r = requests.get(
+            f"{public_url}/manifest.json" if public_url else manifest_url,
+            timeout=10,
+        )
+        if r.ok:
+            manifest_dates = r.json()
+    except Exception:
+        pass
+    if today_str not in manifest_dates:
+        manifest_dates.append(today_str)
+        manifest_dates.sort()
+    if _webdav_put(manifest_url, json.dumps(manifest_dates).encode()):
+        print(f"✅ Manifest updated ({len(manifest_dates)} dates)")
